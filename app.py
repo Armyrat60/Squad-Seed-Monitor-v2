@@ -166,23 +166,24 @@ class SeedMonitorApp(ctk.CTk):
                      font=ctk.CTkFont(size=13)).pack(pady=40)
 
     def _build_monitor_tab(self):
-        # Scrollable so the whole step flow is reachable at any window size / DPI.
+        # Scrollable; only the status and the action are boxed cards. The steps
+        # are light sections separated by thin dividers so they don't compete.
         p = ctk.CTkScrollableFrame(self.tab_monitor, fg_color="transparent")
         p.pack(fill="both", expand=True)
 
-        def card(title=None):
-            c = ctk.CTkFrame(p, fg_color="#20272e", corner_radius=10)
-            c.pack(fill="x", padx=14, pady=5)
-            hdr = None
-            if title is not None:
-                hdr = ctk.CTkFrame(c, fg_color="transparent")
-                hdr.pack(fill="x", padx=12, pady=(8, 0))
-                ctk.CTkLabel(hdr, text=title, text_color=WARN,
-                             font=ctk.CTkFont(size=13, weight="bold")).pack(side="left")
-            return c, hdr
+        def section(title):
+            hdr = ctk.CTkFrame(p, fg_color="transparent")
+            hdr.pack(fill="x", padx=18, pady=(12, 0))
+            ctk.CTkLabel(hdr, text=title, text_color=WARN,
+                         font=ctk.CTkFont(size=13, weight="bold")).pack(side="left")
+            return hdr
 
-        # --- Compact status: big count + info on the right, thin graph below ---
-        status, _ = card()
+        def divider():
+            ctk.CTkFrame(p, height=1, fg_color="#2c343d").pack(fill="x", padx=18, pady=(10, 0))
+
+        # --- Status card (boxed): big count + info, thin graph below ---
+        status = ctk.CTkFrame(p, fg_color="#20272e", corner_radius=10)
+        status.pack(fill="x", padx=14, pady=(10, 2))
         row = ctk.CTkFrame(status, fg_color="transparent")
         row.pack(fill="x", padx=14, pady=(10, 2))
         left = ctk.CTkFrame(row, fg_color="transparent")
@@ -201,22 +202,19 @@ class SeedMonitorApp(ctk.CTk):
                                       font=ctk.CTkFont(size=12), anchor="w",
                                       wraplength=360, justify="left")
         self.lbl_layer.pack(anchor="w")
-        self.lbl_target = ctk.CTkLabel(infocol, text=self._target_text(),
-                                       font=ctk.CTkFont(size=12), anchor="w")
-        self.lbl_target.pack(anchor="w")
         self.lbl_timer = ctk.CTkLabel(infocol, text="Next check in -- s", text_color=MUTED,
                                       font=ctk.CTkFont(size=11), anchor="w")
         self.lbl_timer.pack(anchor="w")
-        self.graph = ctk.CTkCanvas(status, height=54, highlightthickness=0, bg="#1a1e22")
+        self.graph = ctk.CTkCanvas(status, height=50, highlightthickness=0, bg="#1a1e22")
         self.graph.pack(fill="x", padx=12, pady=(4, 10))
         self.graph.bind("<Configure>", lambda e: self._draw_graph())
 
         # --- Step 1: set low graphics (Squad closed) ---
-        s1, h1 = card("\u2460  Set low graphics \u2014 Squad CLOSED")
+        h1 = section("\u2460  Set low graphics \u2014 Squad CLOSED")
         ctk.CTkButton(h1, text="\u24d8 How it works", width=104, height=24, fg_color="#3d4652",
                       command=self._show_seed_mode_help).pack(side="right")
-        tr = ctk.CTkFrame(s1, fg_color="transparent")
-        tr.pack(padx=12, pady=(6, 10))
+        tr = ctk.CTkFrame(p, fg_color="transparent")
+        tr.pack(anchor="w", padx=18, pady=(6, 0))
         ctk.CTkLabel(tr, text="Resolution", text_color=MUTED,
                      font=ctk.CTkFont(size=10)).grid(row=0, column=0, padx=4, sticky="w")
         ctk.CTkLabel(tr, text="FPS limit", text_color=MUTED,
@@ -231,63 +229,57 @@ class SeedMonitorApp(ctk.CTk):
         self.btn_restore = ctk.CTkButton(tr, text="Restore", width=80, fg_color="#e67e22",
                                          state="disabled", command=self.manual_restore)
         self.btn_restore.grid(row=1, column=3, padx=4)
+        divider()
 
         # --- Step 2: launch & join ---
-        s2, _ = card("\u2461  Launch & join")
-        jr = ctk.CTkFrame(s2, fg_color="transparent")
-        jr.pack(padx=12, pady=(6, 4))
+        section("\u2461  Launch & join")
+        jr = ctk.CTkFrame(p, fg_color="transparent")
+        jr.pack(anchor="w", padx=18, pady=(6, 0))
         ctk.CTkButton(jr, text="Launch Squad", width=150, fg_color="#3d4652",
                       command=lambda: webbrowser.open(core.LAUNCH_URL)).grid(row=0, column=0, padx=5)
         ctk.CTkButton(jr, text="Connect", width=150, fg_color=ACCENT,
                       command=self.connect_server).grid(row=0, column=1, padx=5)
-        ctk.CTkLabel(s2, text="With Squad closed, Connect launches & joins. If it's already open "
+        ctk.CTkLabel(p, text="With Squad closed, Connect launches & joins. If it's already open "
                              "or lands on the menu, paste the copied address into the in-game "
                              "Custom Browser.",
-                     text_color=MUTED, font=ctk.CTkFont(size=10), wraplength=520,
-                     justify="left").pack(anchor="w", padx=12, pady=(0, 10))
+                     text_color=MUTED, font=ctk.CTkFont(size=10), wraplength=540,
+                     justify="left").pack(anchor="w", padx=18, pady=(4, 0))
+        divider()
 
         # --- Step 3: while seeding (Squad open) ---
-        s3, _ = card("\u2462  While seeding \u2014 Squad open")
-        ctk.CTkLabel(s3, text="Live changes \u2014 use these after Squad is open.",
-                     text_color=MUTED, font=ctk.CTkFont(size=10)).pack(anchor="w", padx=12,
-                                                                       pady=(2, 2))
-        lr = ctk.CTkFrame(s3, fg_color="transparent")
-        lr.pack(padx=12, pady=(0, 10))
-        self.btn_mute = ctk.CTkButton(lr, text="Mute Audio", width=132, fg_color="#3d4652",
+        section("\u2462  While seeding \u2014 Squad open")
+        ctk.CTkLabel(p, text="Live changes \u2014 use these after Squad is open.",
+                     text_color=MUTED, font=ctk.CTkFont(size=10)).pack(anchor="w", padx=18,
+                                                                       pady=(4, 0))
+        lr = ctk.CTkFrame(p, fg_color="transparent")
+        lr.pack(anchor="w", padx=18, pady=(4, 0))
+        self.btn_mute = ctk.CTkButton(lr, text="Mute Audio", width=150, fg_color="#3d4652",
                                       command=self.mute_squad)
-        self.btn_mute.grid(row=0, column=0, padx=4, pady=2)
-        ctk.CTkButton(lr, text="Minimize Squad", width=132, fg_color="#3d4652",
-                      command=self.minimize_squad).grid(row=0, column=1, padx=4, pady=2)
+        self.btn_mute.grid(row=0, column=0, padx=5, pady=2)
+        ctk.CTkButton(lr, text="Minimize Squad", width=150, fg_color="#3d4652",
+                      command=self.minimize_squad).grid(row=0, column=1, padx=5, pady=2)
         ctk.CTkButton(lr, text="\u21ba Undo All (unmute + restore)", fg_color="#3d4652",
-                      command=self.undo_all).grid(row=1, column=0, columnspan=2, padx=4,
+                      command=self.undo_all).grid(row=1, column=0, columnspan=2, padx=5,
                                                   pady=2, sticky="ew")
+        divider()
 
-        # --- Quick settings (target / confirms / seed gate) ---
-        sr = ctk.CTkFrame(p, fg_color="transparent")
-        sr.pack(pady=(8, 2))
-        ctk.CTkLabel(sr, text="Target").grid(row=0, column=0, padx=4)
-        self.spin_target = ctk.CTkEntry(sr, width=50)
-        self.spin_target.insert(0, str(self.cfg["target_players"]))
-        self.spin_target.grid(row=0, column=1, padx=(0, 10))
-        self.spin_target.bind("<FocusOut>", lambda e: self.on_settings_change())
-        ctk.CTkLabel(sr, text="Confirms").grid(row=0, column=2, padx=4)
-        self.spin_conf = ctk.CTkEntry(sr, width=40)
-        self.spin_conf.insert(0, str(self.cfg["required_confirmations"]))
-        self.spin_conf.grid(row=0, column=3, padx=(0, 10))
-        self.spin_conf.bind("<FocusOut>", lambda e: self.on_settings_change())
-        self.seed_gate_var = ctk.BooleanVar(value=self.cfg["require_seed_layer"])
-        ctk.CTkCheckBox(sr, text="Only fire on seed layer", variable=self.seed_gate_var,
-                        command=self.on_settings_change).grid(row=0, column=4, padx=4)
-
-        # --- When seeding is done (action) ---
+        # --- When seeding is done (boxed, prominent) with the Target inside ---
         act_card = ctk.CTkFrame(p, fg_color="#243447", border_color=WARN,
                                 border_width=2, corner_radius=10)
-        act_card.pack(fill="x", padx=14, pady=(10, 6))
-        ctk.CTkLabel(act_card, text="\u2714  WHEN SEEDING IS DONE:", text_color=WARN,
-                     font=ctk.CTkFont(size=16, weight="bold")).pack(pady=(12, 0))
-        ctk.CTkLabel(act_card,
-                     text="This is what happens automatically once the target is reached.",
-                     text_color=MUTED, font=ctk.CTkFont(size=11)).pack(pady=(1, 8))
+        act_card.pack(fill="x", padx=14, pady=(12, 8))
+        ctk.CTkLabel(act_card, text="\u2714  WHEN SEEDING IS DONE", text_color=WARN,
+                     font=ctk.CTkFont(size=16, weight="bold")).pack(pady=(12, 4))
+        trig = ctk.CTkFrame(act_card, fg_color="transparent")
+        trig.pack(pady=(0, 6))
+        ctk.CTkLabel(trig, text="Fires when the server reaches",
+                     font=ctk.CTkFont(size=12)).grid(row=0, column=0, padx=(0, 6))
+        self.spin_target = ctk.CTkEntry(trig, width=52, justify="center")
+        self.spin_target.insert(0, str(self.cfg["target_players"]))
+        self.spin_target.grid(row=0, column=1)
+        self.spin_target.bind("<FocusOut>", lambda e: self.on_settings_change())
+        self.spin_target.bind("<Return>", lambda e: self.on_settings_change())
+        ctk.CTkLabel(trig, text="players, then:",
+                     font=ctk.CTkFont(size=12)).grid(row=0, column=2, padx=(6, 0))
         self.action_seg = ctk.CTkSegmentedButton(
             act_card, values=["Do Nothing", "Kill Process", "Shutdown PC"],
             variable=self.action_var, command=self.set_action,
@@ -669,13 +661,9 @@ class SeedMonitorApp(ctk.CTk):
                       self.cfg["target_players"], self.cfg["required_confirmations"],
                       self.cfg["require_seed_layer"], self.cfg["action"])
         # reflect immediately on the monitor tab
-        self.lbl_target.configure(text=self._target_text())
         if hasattr(self, "spin_target"):
             self.spin_target.delete(0, "end"); self.spin_target.insert(0, str(self.cfg["target_players"]))
-        if hasattr(self, "spin_conf"):
-            self.spin_conf.delete(0, "end"); self.spin_conf.insert(0, str(self.cfg["required_confirmations"]))
-        if hasattr(self, "seed_gate_var"):
-            self.seed_gate_var.set(self.cfg["require_seed_layer"])
+        self._draw_graph()
         self.lbl_settings_saved.configure(text="Saved \u2713")
         self.after(2000, lambda: self.lbl_settings_saved.configure(text=""))
 
@@ -882,12 +870,7 @@ class SeedMonitorApp(ctk.CTk):
             self.cfg["target_players"] = max(1, min(100, int(self.spin_target.get())))
         except Exception:
             pass
-        try:
-            self.cfg["required_confirmations"] = max(1, min(10, int(self.spin_conf.get())))
-        except Exception:
-            pass
-        self.cfg["require_seed_layer"] = bool(self.seed_gate_var.get())
-        self.lbl_target.configure(text=self._target_text())
+        self._draw_graph()   # target line follows the new value
         core.save_config(self.cfg)
 
     _ACTION_DESC = {
@@ -1231,7 +1214,9 @@ class SeedMonitorApp(ctk.CTk):
             # target line
             ty = y_for(target)
             c.create_line(pad, ty, w - pad, ty, fill="#f1c40f", dash=(3, 3))
-            c.create_text(w - pad - 2, ty - 7, anchor="e", fill="#f1c40f",
+            # target label on the LEFT so it never collides with the current
+            # value label (which sits at the line's right end).
+            c.create_text(pad + 2, ty - 7, anchor="w", fill="#f1c40f",
                           text=f"target {target}", font=("Segoe UI", 7))
 
             if len(vals) < 2:
