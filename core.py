@@ -478,6 +478,38 @@ def abort_shutdown_cmd(logger=None):
         return False
 
 
+def create_desktop_shortcut(logger=None):
+    """Create a Desktop shortcut to the running .exe (Windows). Returns (ok, msg).
+
+    Only meaningful for the frozen exe — from source there's no single exe to
+    point at. Uses PowerShell's WScript.Shell so no extra dependency is needed."""
+    try:
+        if not getattr(sys, "frozen", False):
+            return False, "Build/run the .exe first — no shortcut target from source."
+        target = sys.executable
+        workdir = os.path.dirname(target)
+        desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+        lnk = os.path.join(desktop, f"{APP_TITLE}.lnk")
+        ps = (
+            "$w=New-Object -ComObject WScript.Shell;"
+            f"$s=$w.CreateShortcut('{lnk}');"
+            f"$s.TargetPath='{target}';"
+            f"$s.WorkingDirectory='{workdir}';"
+            f"$s.IconLocation='{target},0';"
+            "$s.Save()"
+        )
+        import subprocess
+        subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+                       capture_output=True, check=False)
+        if os.path.exists(lnk):
+            return True, "Desktop shortcut created."
+        return False, "Shortcut command ran but no .lnk appeared."
+    except Exception as e:
+        if logger:
+            logger.warning("create_desktop_shortcut failed: %s", e)
+        return False, f"Shortcut failed: {e}"
+
+
 def game_is_running():
     """True if SquadGame process is currently running (best-effort)."""
     try:

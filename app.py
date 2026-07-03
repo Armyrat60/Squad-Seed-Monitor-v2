@@ -113,6 +113,9 @@ class SeedMonitorApp(ctk.CTk):
         else:
             self._set_status("No server yet - use the Server tab to find one", WARN)
         self.countdown()
+        # Populate the favorites dashboard shortly after the UI is up, then keep
+        # it refreshing periodically.
+        self.after(1500, self._favorites_autorefresh)
 
     # ------------------------------------------------------------------ UI --- #
     def _build_ui(self):
@@ -284,13 +287,15 @@ class SeedMonitorApp(ctk.CTk):
         self.results_scroll = ctk.CTkScrollableFrame(p, height=200)
         self.results_scroll.pack(fill="x", padx=10, pady=(2, 6))
 
-        # --- Favorites ---
+        # --- Favorites dashboard (live status across all saved servers) ---
         favhdr = ctk.CTkFrame(p, fg_color="transparent")
         favhdr.pack(fill="x", padx=12, pady=(8, 0))
-        ctk.CTkLabel(favhdr, text="Favorites", text_color=WARN,
+        ctk.CTkLabel(favhdr, text="Favorites \u00b7 live status", text_color=WARN,
                      font=ctk.CTkFont(size=14, weight="bold")).pack(side="left")
         ctk.CTkButton(favhdr, text="\u2b50 Save current", width=110,
-                      command=self.save_current_favorite).pack(side="right")
+                      command=self.save_current_favorite).pack(side="right", padx=(6, 0))
+        ctk.CTkButton(favhdr, text="\u21bb Refresh", width=84, fg_color="#3d4652",
+                      command=self.refresh_favorite_status).pack(side="right")
         self.fav_scroll = ctk.CTkScrollableFrame(p, height=220)
         self.fav_scroll.pack(fill="both", expand=True, padx=10, pady=(2, 8))
         self._refresh_favorites()
@@ -326,6 +331,7 @@ class SeedMonitorApp(ctk.CTk):
     def _refresh_favorites(self):
         for w in self.fav_scroll.winfo_children():
             w.destroy()
+        self.fav_status_labels = {}
         favs = self.cfg.get("favorites", [])
         if not favs:
             ctk.CTkLabel(self.fav_scroll,
@@ -333,17 +339,82 @@ class SeedMonitorApp(ctk.CTk):
                          text_color=MUTED).pack(pady=20)
             return
         for f in favs:
+            fid = f.get("id")
             row = ctk.CTkFrame(self.fav_scroll, fg_color="#2b3640")
             row.pack(fill="x", pady=3, padx=2)
-            is_current = f.get("id") == self.cfg.get("server_id")
+            is_current = fid == self.cfg.get("server_id")
+            # left column: name + a live status line
+            info = ctk.CTkFrame(row, fg_color="transparent")
+            info.pack(side="left", fill="x", expand=True, padx=8, pady=4)
             label = ("\u25b6 " if is_current else "") + f.get("name", "(unnamed)")
-            ctk.CTkLabel(row, text=label, anchor="w", wraplength=330,
-                         text_color=ACCENT if is_current else None
-                         ).pack(side="left", fill="x", expand=True, padx=8, pady=6)
-            ctk.CTkButton(row, text="Use", width=50,
-                          command=lambda ff=f: self.use_favorite(ff)).pack(side="left", padx=2)
+            ctk.CTkLabel(info, text=label, anchor="w", wraplength=300, justify="left",
+                         text_color=ACCENT if is_current else None).pack(anchor="w")
+            cached = getattr(self, "_fav_status", {}).get(fid)
+            st_text, st_color = cached if cached else ("\u00b7 checking\u2026", MUTED)
+            stlbl = ctk.CTkLabel(info, text=st_text, anchor="w",
+                                 font=ctk.CTkFont(size=11), text_color=st_color)
+            stlbl.pack(anchor="w")
+            self.fav_status_labels[fid] = stlbl
+            # right column: actions (Use, delete). Pack delete first so Use sits left of it.
             ctk.CTkButton(row, text="\u2715", width=32, fg_color=DANGER,
-                          command=lambda ff=f: self.remove_favorite(ff)).pack(side="left", padx=(2, 6))
+                          command=lambda ff=f: self.remove_favorite(ff)).pack(side="right", padx=(2, 6))
+            ctk.CTkButton(row, text="Use", width=50,
+                          command=lambda ff=f: self.use_favorite(ff)).pack(side="right", padx=2)
+
+    def refresh_favorite_status(self):
+        """Poll every favorite's live player count + seeding state (dashboard)."""
+        favs = self.cfg.get("favorites", [])
+        ids = [f.get("id") for f in favs if f.get("id")]
+        if not ids:
+            return
+        for fid in ids:
+            lbl = getattr(self, "fav_status_labels", {}).get(fid)
+            if lbl:
+                try:
+                    lbl.configure(text="\u00b7 checking\u2026", text_color=MUTED)
+                except Exception:
+                    pass
+        threading.Thread(target=self._poll_favorites_thread, args=(ids,), daemon=True).start()
+
+    def _poll_favorites_thread(self, ids):
+        for fid in ids:
+            try:
+                info = core.bm_get_server(fid)
+                seeding = core.is_seed_layer(info.get("layer", ""),
+                                             info.get("game_mode", ""), self.cfg)
+                players, mx = info.get("players"), info.get("max")
+                if isinstance(players, int):
+                    if seeding:
+                        text, color = f"\u00b7 {players}/{mx} \u00b7 Seeding", WARN
+                    elif players == 0:
+                        text, color = f"\u00b7 {players}/{mx} \u00b7 Empty", MUTED
+                    else:
+                        text, color = f"\u00b7 {players}/{mx} \u00b7 Live", ACCENT
+                else:
+                    text, color = "\u00b7 no data", MUTED
+            except Exception:
+                text, color = "\u00b7 offline", DANGER
+            self.after(0, lambda i=fid, t=text, c=color: self._set_fav_status(i, t, c))
+
+    def _set_fav_status(self, fid, text, color):
+        cache = getattr(self, "_fav_status", None)
+        if cache is None:
+            cache = self._fav_status = {}
+        cache[fid] = (text, color)
+        lbl = getattr(self, "fav_status_labels", {}).get(fid)
+        if lbl:
+            try:
+                lbl.configure(text=text, text_color=color)
+            except Exception:
+                pass
+
+    def _favorites_autorefresh(self):
+        """Periodically refresh the favorites dashboard while the app is open."""
+        try:
+            if self.cfg.get("favorites"):
+                self.refresh_favorite_status()
+        finally:
+            self.after(90_000, self._favorites_autorefresh)
 
     def save_current_favorite(self):
         if not self.cfg.get("server_id"):
@@ -482,10 +553,24 @@ class SeedMonitorApp(ctk.CTk):
                       ).pack(pady=(16, 8))
         self.lbl_settings_saved = ctk.CTkLabel(p, text="", text_color=ACCENT)
         self.lbl_settings_saved.pack(pady=(0, 6))
+
+        section("Shortcuts")
+        ctk.CTkButton(p, text="Create Desktop Shortcut", width=200, fg_color="#3d4652",
+                      command=self.make_desktop_shortcut).pack(pady=(2, 2))
+        ctk.CTkLabel(p, text="To pin to the taskbar: launch the app, then right-click its "
+                             "taskbar icon → Pin to taskbar.",
+                     text_color=MUTED, font=ctk.CTkFont(size=10), wraplength=520,
+                     justify="left").pack(pady=(0, 8))
+
         ctk.CTkLabel(p, text="(With tray enabled, the X button minimizes. Use Quit to exit fully.)",
                      text_color=MUTED, font=ctk.CTkFont(size=10)).pack()
         ctk.CTkButton(p, text="Quit Application", fg_color=DANGER, width=140,
                       command=self._real_quit).pack(pady=(4, 12))
+
+    def make_desktop_shortcut(self):
+        ok, msg = core.create_desktop_shortcut(self.log)
+        self.lbl_settings_saved.configure(text=msg, text_color=ACCENT if ok else WARN)
+        self.log.info("desktop shortcut: %s (%s)", ok, msg)
 
     # ----------------------------------------------------------- log tab --- #
     def _build_log_tab(self):

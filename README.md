@@ -30,7 +30,10 @@ closes Squad or shuts down your PC) so you don't have to babysit it.
   Nothing to remember to undo.
 - **Safe shutdown** — if you choose "Shutdown PC", it asks you to confirm first,
   gives an abortable countdown, and cancels automatically if you don't respond.
-- **Favorites** — save the servers you seed and switch between them in one click.
+- **Favorites dashboard** — save the servers you seed and see them all at a
+  glance: each shows live player count and whether it's **Seeding**, **Live**, or
+  **Empty**, auto-refreshing while the app is open. Switch to any of them in one
+  click. A ☆/★ next to the current server on every tab toggles it as a favorite.
 - **Live graph, tray, notifications** — watch the population climb, minimize to
   the system tray, and get a desktop toast when the server is seeded.
 - **Update check** — tells you when a newer version is available.
