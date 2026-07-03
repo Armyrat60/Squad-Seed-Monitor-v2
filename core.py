@@ -59,6 +59,7 @@ DEFAULT_CONFIG = {
     "notifications": True,           # desktop notifications
     "check_updates": True,           # check GitHub for a newer release at startup
     "minimize_to_tray": False,   # X quits the app by default; opt in to tray
+    "connect_help_shown": False, # one-time direct-connect fallback warning
 }
 
 

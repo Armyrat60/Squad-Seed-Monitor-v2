@@ -195,6 +195,10 @@ class SeedMonitorApp(ctk.CTk):
                       command=lambda: webbrowser.open(core.LAUNCH_URL)).grid(row=0, column=0, padx=6)
         ctk.CTkButton(jr, text="Connect", width=130, fg_color=ACCENT,
                       command=self.connect_server).grid(row=0, column=1, padx=6)
+        ctk.CTkLabel(p, text="Connect copies the address & asks Squad to join. If it opens to "
+                             "the menu (a known Steam bug), paste it into the in-game Custom Browser.",
+                     text_color=MUTED, font=ctk.CTkFont(size=10), wraplength=560,
+                     justify="center").pack(pady=(2, 0))
 
         # Seeding tools
         ctk.CTkLabel(p, text="Seeding Optimization", text_color=WARN,
@@ -784,6 +788,49 @@ class SeedMonitorApp(ctk.CTk):
         webbrowser.open(url)
         self._set_status(f"Launching Squad → {connect} (copied — paste in the "
                          f"in-game browser if it doesn't auto-join)", ACCENT)
+        if not self.cfg.get("connect_help_shown"):
+            self._show_connect_help(connect)
+
+    def _show_connect_help(self, connect):
+        """One-time warning: direct connect may fail (Steam bug); how to fall back."""
+        win = ctk.CTkToplevel(self)
+        win.title("Joining the server")
+        win.geometry("440x330")
+        win.transient(self)
+        win.grab_set()
+        try:
+            win.after(200, lambda: win.iconbitmap(
+                _resource_path(os.path.join("assets", "icon.ico"))))
+        except Exception:
+            pass
+        ctk.CTkLabel(win, text="⚠  If Squad opens to the menu instead of joining",
+                     font=ctk.CTkFont(size=15, weight="bold"), text_color=WARN,
+                     wraplength=400).pack(pady=(16, 6), padx=16)
+        ctk.CTkLabel(
+            win, justify="left", wraplength=400, font=ctk.CTkFont(size=12),
+            text=("Steam's direct-connect is buggy for Squad, so auto-join may not\n"
+                  "work. The server address is already copied to your clipboard:\n\n"
+                  f"     {connect}\n\n"
+                  "To join manually:\n"
+                  "  1.  Squad main menu → Custom Browser\n"
+                  "  2.  Paste (Ctrl+V) into the search / IP box\n"
+                  "  3.  Select the server and Join\n\n"
+                  "Web browsers like squadbrowser.app also work.")
+        ).pack(pady=(0, 8), padx=16, anchor="w")
+
+        dont = ctk.BooleanVar(value=True)
+        ctk.CTkCheckBox(win, text="Don't show this again", variable=dont).pack(pady=(0, 8))
+
+        def close():
+            if dont.get():
+                self.cfg["connect_help_shown"] = True
+                core.save_config(self.cfg)
+            try:
+                win.grab_release(); win.destroy()
+            except Exception:
+                pass
+        win.protocol("WM_DELETE_WINDOW", close)
+        ctk.CTkButton(win, text="Got it", width=120, command=close).pack(pady=(0, 12))
 
     # -------------------------------------------------------- settings --- #
     def on_settings_change(self):
