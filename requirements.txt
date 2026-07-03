@@ -1,0 +1,8 @@
+customtkinter
+requests
+pycaw
+comtypes
+plyer
+pystray
+Pillow
+pyinstaller
