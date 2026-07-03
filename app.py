@@ -320,7 +320,8 @@ class SeedMonitorApp(ctk.CTk):
 
     def _star_result(self, r):
         """Save a search result straight to favorites without selecting it."""
-        core.add_favorite(self.cfg, r["id"], r["name"], r.get("connect", ""))
+        core.add_favorite(self.cfg, r["id"], r["name"], r.get("connect", ""),
+                          r.get("query_port", 0))
         core.save_config(self.cfg)
         self.log.info("starred from search: %s", r["name"])
         self._refresh_favorites()
@@ -421,14 +422,16 @@ class SeedMonitorApp(ctk.CTk):
             self._set_status("Select a server first, then save it", WARN)
             return
         core.add_favorite(self.cfg, self.cfg["server_id"],
-                          self.cfg.get("server_name", ""), self.cfg.get("connect", ""))
+                          self.cfg.get("server_name", ""), self.cfg.get("connect", ""),
+                          self.cfg.get("query_port", 0))
         core.save_config(self.cfg)
         self.log.info("saved favorite: %s", self.cfg.get("server_name"))
         self._refresh_favorites()
 
     def use_favorite(self, fav):
         self.cfg.update({"server_id": fav["id"], "server_name": fav.get("name", ""),
-                         "connect": fav.get("connect", "")})
+                         "connect": fav.get("connect", ""),
+                         "query_port": fav.get("query_port", 0)})
         core.save_config(self.cfg)
         self.log.info("switched to favorite: %s", fav.get("name"))
         self._refresh_server_header()
@@ -534,8 +537,9 @@ class SeedMonitorApp(ctk.CTk):
 
         section("Connection")
         num_field("Connect port override (blank = auto)", "connect_port_override",
-                  "Only set this if Connect fails. BattleMetrics usually reports the correct "
-                  "game port; override it here if your host maps ports differently.", width=90)
+                  "Connect uses the server's Steam QUERY port (auto-detected from "
+                  "BattleMetrics). Only set this if Connect still fails — enter the exact "
+                  "query port your host uses.", width=90)
 
         section("App")
         toggle("Desktop notifications", "notifications",
@@ -662,7 +666,7 @@ class SeedMonitorApp(ctk.CTk):
             self.log.info("unfavorited: %s", self.cfg.get("server_name"))
         else:
             core.add_favorite(self.cfg, sid, self.cfg.get("server_name", ""),
-                              self.cfg.get("connect", ""))
+                              self.cfg.get("connect", ""), self.cfg.get("query_port", 0))
             self.log.info("favorited: %s", self.cfg.get("server_name"))
         core.save_config(self.cfg)
         self._update_fav_star()
@@ -717,7 +721,7 @@ class SeedMonitorApp(ctk.CTk):
 
     def _pick(self, r):
         self.cfg.update({"server_id": r["id"], "server_name": r["name"],
-                         "connect": r["connect"]})
+                         "connect": r["connect"], "query_port": r.get("query_port", 0)})
         core.save_config(self.cfg)
         self.log.info("server selected: %s (id=%s)", r["name"], r["id"])
         self._refresh_server_header()
@@ -744,7 +748,8 @@ class SeedMonitorApp(ctk.CTk):
                 self.after(0, lambda: self._set_status("Lookup failed - check ID/network", DANGER))
                 return
             self.cfg.update({"server_id": sid, "server_name": info["name"],
-                             "connect": info["connect"]})
+                             "connect": info["connect"],
+                             "query_port": info.get("query_port", 0)})
             core.save_config(self.cfg)
             self.log.info("server set by id: %s (%s)", sid, info["name"])
             self.after(0, self._after_id_set)
@@ -758,12 +763,12 @@ class SeedMonitorApp(ctk.CTk):
         self.check_api()
 
     def connect_server(self):
-        connect = core.effective_connect(self.cfg)
-        if connect:
-            self.log.info("connect requested -> %s", connect)
-            # Launch Squad by appid + pass +connect, rather than steam://connect
-            # (which fails with "app id specified by server is invalid").
-            webbrowser.open(core.steam_connect_url(connect))
+        if self.cfg.get("connect"):
+            url = core.steam_connect_url(self.cfg)
+            self.log.info("connect requested -> %s (query_port=%s override=%s)",
+                          url, self.cfg.get("query_port"),
+                          self.cfg.get("connect_port_override") or "-")
+            webbrowser.open(url)
         else:
             self._set_status("No server selected - pick one on the Server tab", WARN)
             webbrowser.open(core.LAUNCH_URL)
@@ -955,6 +960,15 @@ class SeedMonitorApp(ctk.CTk):
         if info.get("connect") and info["connect"] != self.cfg.get("connect"):
             self.cfg["connect"] = info["connect"]
             self._refresh_server_header()
+        # Learn the Steam query port from the poll and remember it (also on the
+        # favorite) so Connect works reliably.
+        qp = info.get("query_port")
+        if qp and qp != self.cfg.get("query_port"):
+            self.cfg["query_port"] = qp
+            for f in self.cfg.get("favorites", []):
+                if f.get("id") == self.cfg.get("server_id"):
+                    f["query_port"] = qp
+            core.save_config(self.cfg)
 
         # layer display
         suffix = f"  [{mode}]" if mode else ""

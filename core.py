@@ -40,8 +40,9 @@ DEFAULT_CONFIG = {
     "favorites": [],                 # [{"id","name","connect"}]
     "server_id": "",                 # currently selected server
     "server_name": "",
-    "connect": "",                   # cached "ip:port"
-    "connect_port_override": "",     # blank = use BattleMetrics 'port'
+    "connect": "",                   # cached "ip:port" (game port, for display)
+    "query_port": 0,                 # Steam query port (from BattleMetrics portQuery)
+    "connect_port_override": "",     # blank = use the query port; set to force a port
     "target_players": 95,
     "required_confirmations": 3,
     "poll_seconds": 60,
@@ -180,10 +181,15 @@ def _validate_config(cfg):
     clean_favs = []
     for f in cfg.get("favorites", []):
         if isinstance(f, dict) and f.get("id"):
+            try:
+                qp = int(f.get("query_port") or 0)
+            except (ValueError, TypeError):
+                qp = 0
             clean_favs.append({
                 "id": str(f.get("id")),
                 "name": str(f.get("name", "")),
                 "connect": str(f.get("connect", "")),
+                "query_port": qp,
             })
     cfg["favorites"] = clean_favs
     return cfg
@@ -262,7 +268,7 @@ def bm_search_servers(query, limit=8):
         "filter[game]": "squad",
         "filter[search]": query,
         "page[size]": str(limit),
-        "fields[server]": "name,ip,port,players,maxPlayers,details",
+        "fields[server]": "name,ip,port,portQuery,players,maxPlayers,details",
     }
     resp = requests.get(url, params=params, timeout=8)
     resp.raise_for_status()
@@ -276,6 +282,7 @@ def bm_search_servers(query, limit=8):
             "players": a.get("players"),
             "max": a.get("maxPlayers"),
             "connect": f"{ip}:{port}" if ip and port else "",
+            "query_port": a.get("portQuery") or 0,
         })
     return out
 
@@ -295,6 +302,7 @@ def bm_get_server(server_id):
         "game_mode": d.get("gameMode") or "",
         "ip": ip,
         "port": port,
+        "query_port": a.get("portQuery") or 0,
         "connect": f"{ip}:{port}" if ip and port else "",
     }
 
@@ -321,37 +329,54 @@ def effective_connect(cfg):
     return connect
 
 
-def steam_connect_url(connect):
-    """Build the Steam URL that launches Squad AND joins a server.
+def steam_connect_url(cfg):
+    """Build the `steam://connect` URL that launches Squad AND joins the server.
 
-    We deliberately do NOT use `steam://connect/<ip:port>`. That form asks Steam
-    to query the address itself to discover which game owns it; against a Squad
-    game port that query fails and Steam pops "app id specified by server is
-    invalid". Instead we launch Squad explicitly by its appid and hand the game
-    a `+connect` argument, so Steam never has to detect the appid.
+    Steam identifies which game a server belongs to by querying its *Steam query
+    port* (BattleMetrics `portQuery`), NOT the game port. Handing it the game
+    port is what produces "app id specified by server is invalid". So we connect
+    on the query port; a manual `connect_port_override` wins if set, and the game
+    port is only a last-resort fallback.
 
-    Returns the plain launch URL if `connect` is empty.
+    Returns the plain launch URL if we have no address.
     """
-    if not connect:
+    connect = cfg.get("connect") or ""
+    if not connect or ":" not in connect:
         return LAUNCH_URL
-    # LAUNCH_URL already ends in the "//" that begins Squad's launch options.
-    return f"{LAUNCH_URL}+connect%20{connect}"
+    ip = connect.rsplit(":", 1)[0]
+    override = str(cfg.get("connect_port_override", "")).strip()
+    if override.isdigit():
+        port = override
+    elif cfg.get("query_port"):
+        port = str(cfg["query_port"])
+    else:
+        port = connect.rsplit(":", 1)[1]  # game port fallback
+    if not ip or not port:
+        return LAUNCH_URL
+    return f"steam://connect/{ip}:{port}"
 
 
 # --------------------------------------------------------------------------- #
 #  Favorites (pure list operations on cfg["favorites"])
 # --------------------------------------------------------------------------- #
-def add_favorite(cfg, server_id, name, connect):
+def add_favorite(cfg, server_id, name, connect, query_port=0):
     """Add or update a favorite by server_id. Returns True if added/updated."""
     if not server_id:
         return False
+    try:
+        query_port = int(query_port or 0)
+    except (ValueError, TypeError):
+        query_port = 0
     favs = cfg.setdefault("favorites", [])
     for f in favs:
         if f.get("id") == server_id:
             f["name"] = name
             f["connect"] = connect
+            if query_port:            # don't wipe a known port with 0
+                f["query_port"] = query_port
             return True
-    favs.append({"id": server_id, "name": name, "connect": connect})
+    favs.append({"id": server_id, "name": name, "connect": connect,
+                 "query_port": query_port})
     return True
 
 
