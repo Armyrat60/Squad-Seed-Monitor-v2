@@ -40,8 +40,9 @@ closes Squad or shuts down your PC) so you don't have to babysit it.
 1. **Search your server** (name or BM ID) and select it.
 2. **Set your target** — the population at which seeding is "done" (default 95).
    Leave **Only fire on seed layer** on; it's the safest signal.
-3. Click **Apply** (low res/FPS) before launching, then **Launch Squad** and
-   **Connect**.
+3. Click **Apply** (low res/FPS) before launching, then click **Connect** — it
+   launches Squad and joins the server in one step. (**Launch Squad** just opens
+   the game without joining, if you'd rather pick the server yourself.)
 4. Pick what happens when seeded: **Do Nothing** / **Kill Process** / **Shutdown PC**.
 5. Walk away. When the server seeds or goes live, your game is restored
    automatically (and Squad closes / PC shuts down if you chose that).
