@@ -202,9 +202,21 @@ class SeedMonitorApp(ctk.CTk):
 
         # Seeding tools
         ctk.CTkLabel(p, text="Seeding Optimization", text_color=WARN,
-                     font=ctk.CTkFont(size=12, weight="bold")).pack(pady=(12, 0))
-        ctk.CTkLabel(p, text="Apply config BEFORE launching · Mute AFTER game opens",
-                     text_color=MUTED, font=ctk.CTkFont(size=11)).pack()
+                     font=ctk.CTkFont(size=13, weight="bold")).pack(pady=(12, 2))
+        note = ctk.CTkFrame(p, fg_color="#3a2e1a", border_color=WARN, border_width=2,
+                            corner_radius=8)
+        note.pack(fill="x", padx=16, pady=(0, 4))
+        ctk.CTkLabel(note, text="⚠  Close Squad BEFORE using Apply or Restore",
+                     text_color=WARN, font=ctk.CTkFont(size=13, weight="bold"),
+                     wraplength=520).pack(pady=(8, 2), padx=10)
+        ctk.CTkLabel(
+            note, justify="left", wraplength=520, text_color="#d8d8d8",
+            font=ctk.CTkFont(size=11),
+            text=("Squad loads these settings at launch and rewrites them on exit, so:\n"
+                  "  1.  Close Squad  →  2.  Apply  →  3.  Launch (now seeding at low graphics)\n"
+                  "When done, close Squad, click Restore, then relaunch to play normally.\n"
+                  "Mute is the exception — mute AFTER Squad is open (it's a live change).")
+        ).pack(pady=(0, 8), padx=12, anchor="w")
         tr = ctk.CTkFrame(p, fg_color="transparent")
         tr.pack(pady=4)
         self.btn_mute = ctk.CTkButton(tr, text="Mute Audio", width=100, fg_color="#3d4652",
@@ -218,7 +230,7 @@ class SeedMonitorApp(ctk.CTk):
         self.btn_apply.grid(row=0, column=3, padx=4)
         self.btn_restore = ctk.CTkButton(tr, text="Restore", width=80, fg_color="#e67e22",
                                          state="disabled",
-                                         command=lambda: self.restore_settings(user_initiated=True))
+                                         command=self.manual_restore)
         self.btn_restore.grid(row=0, column=4, padx=4)
 
         # "Back to playing" one-click: unmute + restore graphics together
@@ -949,9 +961,20 @@ class SeedMonitorApp(ctk.CTk):
     def toggle_apply_restore(self):
         """Apply button doubles as Restore once settings are applied."""
         if self.seed_config_applied:
-            self.restore_settings(user_initiated=True)
+            self.manual_restore()
         else:
             self.apply_seed_settings()
+
+    def manual_restore(self):
+        """User-clicked restore. Squad rewrites the ini on exit, so restoring
+        while it's running is pointless (and would consume the backup). Guard it
+        with a clear message. Auto-revert uses restore_settings() directly."""
+        if core.game_is_running():
+            self._set_status("Close Squad first — it overwrites graphics on exit. "
+                             "Restore will stick once Squad is closed.", WARN)
+            self.log.info("manual restore blocked: Squad running")
+            return
+        self.restore_settings(user_initiated=True)
 
     def restore_settings(self, user_initiated=False):
         import shutil
