@@ -166,7 +166,10 @@ class SeedMonitorApp(ctk.CTk):
                      font=ctk.CTkFont(size=13)).pack(pady=40)
 
     def _build_monitor_tab(self):
-        p = self.tab_monitor
+        # Scrollable so the whole flow (status → tools → action) is always
+        # reachable regardless of window size / DPI.
+        p = ctk.CTkScrollableFrame(self.tab_monitor, fg_color="transparent")
+        p.pack(fill="both", expand=True)
 
         self.lbl_players = ctk.CTkLabel(p, text="--",
                                         font=ctk.CTkFont(size=64, weight="bold"))
@@ -201,42 +204,44 @@ class SeedMonitorApp(ctk.CTk):
                      text_color=MUTED, font=ctk.CTkFont(size=10), wraplength=580,
                      justify="center").pack(pady=(2, 0))
 
-        # Seeding tools
-        ctk.CTkLabel(p, text="Seeding Optimization", text_color=WARN,
-                     font=ctk.CTkFont(size=13, weight="bold")).pack(pady=(12, 2))
-        note = ctk.CTkFrame(p, fg_color="#3a2e1a", border_color=WARN, border_width=2,
-                            corner_radius=8)
-        note.pack(fill="x", padx=16, pady=(0, 4))
-        ctk.CTkLabel(note, text="⚠  Close Squad BEFORE using Apply or Restore",
-                     text_color=WARN, font=ctk.CTkFont(size=13, weight="bold"),
-                     wraplength=520).pack(pady=(8, 2), padx=10)
-        ctk.CTkLabel(
-            note, justify="left", wraplength=520, text_color="#d8d8d8",
-            font=ctk.CTkFont(size=11),
-            text=("Squad loads these settings at launch and rewrites them on exit, so:\n"
-                  "  1.  Close Squad  →  2.  Apply  →  3.  Launch (now seeding at low graphics)\n"
-                  "When done, close Squad, click Restore, then relaunch to play normally.\n"
-                  "Mute is the exception — mute AFTER Squad is open (it's a live change).")
-        ).pack(pady=(0, 8), padx=12, anchor="w")
-        tr = ctk.CTkFrame(p, fg_color="transparent")
-        tr.pack(pady=4)
-        self.btn_mute = ctk.CTkButton(tr, text="Mute Audio", width=100, fg_color="#3d4652",
+        # --- Low-Resource Seeding Mode card ---
+        opt = ctk.CTkFrame(p, fg_color="#20272e", corner_radius=10)
+        opt.pack(fill="x", padx=16, pady=(12, 4))
+        head = ctk.CTkFrame(opt, fg_color="transparent")
+        head.pack(fill="x", padx=12, pady=(10, 0))
+        ctk.CTkLabel(head, text="Low-Resource Seeding Mode", text_color=WARN,
+                     font=ctk.CTkFont(size=13, weight="bold")).pack(side="left")
+        ctk.CTkButton(head, text="ⓘ How it works", width=104, height=26, fg_color="#3d4652",
+                      command=self._show_seed_mode_help).pack(side="right")
+        ctk.CTkLabel(opt, text="Minimal graphics so seeding barely loads your PC.  "
+                               "⚠ Set these with Squad CLOSED (mute after it's open).",
+                     text_color=MUTED, font=ctk.CTkFont(size=11), wraplength=520,
+                     justify="left").pack(anchor="w", padx=12, pady=(2, 6))
+
+        tr = ctk.CTkFrame(opt, fg_color="transparent")
+        tr.pack(padx=12, pady=(0, 6))
+        ctk.CTkLabel(tr, text="Resolution", text_color=MUTED,
+                     font=ctk.CTkFont(size=10)).grid(row=0, column=0, padx=4, sticky="w")
+        ctk.CTkLabel(tr, text="FPS limit", text_color=MUTED,
+                     font=ctk.CTkFont(size=10)).grid(row=0, column=1, padx=4, sticky="w")
+        ctk.CTkOptionMenu(tr, values=["1024x768", "1280x720", "1600x900", "1920x1080"],
+                          variable=self.res_var, width=104).grid(row=1, column=0, padx=4)
+        ctk.CTkOptionMenu(tr, values=["5", "15", "30", "60", "120", "144"],
+                          variable=self.fps_var, width=78).grid(row=1, column=1, padx=4)
+        self.btn_apply = ctk.CTkButton(tr, text="Apply", width=78,
+                                       command=self.toggle_apply_restore)
+        self.btn_apply.grid(row=1, column=2, padx=4)
+        self.btn_restore = ctk.CTkButton(tr, text="Restore", width=80, fg_color="#e67e22",
+                                         state="disabled", command=self.manual_restore)
+        self.btn_restore.grid(row=1, column=3, padx=4)
+
+        ar2 = ctk.CTkFrame(opt, fg_color="transparent")
+        ar2.pack(padx=12, pady=(0, 10))
+        self.btn_mute = ctk.CTkButton(ar2, text="Mute Audio", width=110, fg_color="#3d4652",
                                       command=self.mute_squad)
         self.btn_mute.grid(row=0, column=0, padx=4)
-        ctk.CTkOptionMenu(tr, values=["1024x768", "1280x720", "1600x900", "1920x1080"],
-                          variable=self.res_var, width=110).grid(row=0, column=1, padx=4)
-        ctk.CTkOptionMenu(tr, values=["5", "15", "30", "60", "120", "144"],
-                          variable=self.fps_var, width=70).grid(row=0, column=2, padx=4)
-        self.btn_apply = ctk.CTkButton(tr, text="Apply", width=70, command=self.toggle_apply_restore)
-        self.btn_apply.grid(row=0, column=3, padx=4)
-        self.btn_restore = ctk.CTkButton(tr, text="Restore", width=80, fg_color="#e67e22",
-                                         state="disabled",
-                                         command=self.manual_restore)
-        self.btn_restore.grid(row=0, column=4, padx=4)
-
-        # "Back to playing" one-click: unmute + restore graphics together
-        ctk.CTkButton(p, text="\u21ba  Undo All (unmute + restore graphics)", fg_color="#3d4652",
-                      command=self.undo_all).pack(pady=(6, 0))
+        ctk.CTkButton(ar2, text="↺ Undo All (unmute + restore)", fg_color="#3d4652",
+                      command=self.undo_all).grid(row=0, column=1, padx=4)
 
         # Quick settings (target / confirms / seed gate) - full panel in Settings tab later
         sr = ctk.CTkFrame(p, fg_color="transparent")
@@ -983,6 +988,37 @@ class SeedMonitorApp(ctk.CTk):
             self.log.info("manual restore blocked: Squad running")
             return
         self.restore_settings(user_initiated=True)
+
+    def _show_seed_mode_help(self):
+        """Popup explaining what Low-Resource Seeding Mode does and the workflow."""
+        win = ctk.CTkToplevel(self)
+        win.title("Low-Resource Seeding Mode")
+        win.geometry("470x360")
+        win.transient(self)
+        win.grab_set()
+        try:
+            win.after(200, lambda: win.iconbitmap(
+                _resource_path(os.path.join("assets", "icon.ico"))))
+        except Exception:
+            pass
+        ctk.CTkLabel(win, text="Low-Resource Seeding Mode", text_color=WARN,
+                     font=ctk.CTkFont(size=16, weight="bold")).pack(pady=(16, 4), padx=16)
+        ctk.CTkLabel(
+            win, justify="left", wraplength=430, font=ctk.CTkFont(size=12), text_color="#d8d8d8",
+            text=("Seeding means sitting in a near-empty server to help it fill. This\n"
+                  "mode drops Squad to minimal resolution + FPS so it barely uses your\n"
+                  "GPU/CPU while you wait.\n\n"
+                  "Squad reads these settings when it launches and rewrites the file\n"
+                  "when it closes, so the order matters:\n\n"
+                  "  1.  Close Squad\n"
+                  "  2.  Pick a low Resolution + FPS limit, click Apply\n"
+                  "  3.  Launch Squad — now seeding at low graphics\n\n"
+                  "When seeding is done, to play normally:\n"
+                  "  4.  Close Squad → click Restore → relaunch\n\n"
+                  "Mute is the exception: mute AFTER Squad is open (it's a live change).\n"
+                  "Undo All = unmute + restore graphics in one click.")
+        ).pack(pady=(0, 10), padx=18, anchor="w")
+        ctk.CTkButton(win, text="Got it", width=120, command=win.destroy).pack(pady=(0, 12))
 
     def restore_settings(self, user_initiated=False):
         import shutil
