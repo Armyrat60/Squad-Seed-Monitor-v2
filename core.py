@@ -51,7 +51,7 @@ DEFAULT_CONFIG = {
     "seed_layer_keywords": ["seed"], # fallback: map-name substrings
     "action": "Kill Process",        # Do Nothing | Kill Process | Shutdown PC
     "shutdown_grace_seconds": 30,
-    "confirm_before_shutdown": True, # show a dialog before the first shutdown fires
+    "confirm_before_shutdown": False, # walk-away: shut down with an abort window, no dialog
     "min_uptime_minutes": 3,         # don't fire within N min of app launch
     "auto_revert_on_live": True,     # auto unmute+restore graphics when server leaves seed layer
     "auto_revert_on_target": True,   # auto unmute+restore graphics when target is hit

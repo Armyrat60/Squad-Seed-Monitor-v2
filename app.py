@@ -526,8 +526,9 @@ class SeedMonitorApp(ctk.CTk):
 
         section("Safety")
         toggle("Confirm before shutdown fires", "confirm_before_shutdown",
-               "Show a dialog before shutting down. If you don't respond, it defaults to NOT "
-               "shutting down. Leave on unless you fully trust an unattended box.")
+               "Off by default (walk-away): when seeded, the PC shuts down after the grace "
+               "countdown with an ABORT button. Turn this ON to instead pop a dialog that "
+               "CANCELS if you don't respond - safer, but it won't shut down while you're away.")
         num_field("Min uptime before firing (minutes)", "min_uptime_minutes",
                   "Won't fire within this many minutes of launching the app - prevents an "
                   "instant shutdown if you open it when the server is already seeded.")
@@ -1245,10 +1246,12 @@ class SeedMonitorApp(ctk.CTk):
         try:
             import pystray
             from PIL import Image, ImageDraw
-            # simple generated icon (green seed dot) - no asset file needed
-            img = Image.new("RGB", (64, 64), "#1e2327")
-            d = ImageDraw.Draw(img)
-            d.ellipse((16, 16, 48, 48), fill="#2fa572")
+            # Prefer the bundled app icon; fall back to a generated green dot.
+            try:
+                img = Image.open(_resource_path(os.path.join("assets", "icon.ico")))
+            except Exception:
+                img = Image.new("RGB", (64, 64), "#1e2327")
+                ImageDraw.Draw(img).ellipse((16, 16, 48, 48), fill="#2fa572")
             menu = pystray.Menu(
                 pystray.MenuItem("Show", self._tray_show, default=True),
                 pystray.MenuItem("Quit", self._tray_quit),
