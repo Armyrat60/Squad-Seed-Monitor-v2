@@ -570,7 +570,11 @@ _RES_Y_KEYS = ("ResolutionSizeY", "LastUserConfirmedResolutionSizeY", "DesiredSc
 _FPS_KEYS = ("FrameRateLimit",)
 
 
-_GFX_SECTION = "[/Script/Engine.GameUserSettings]"
+# Squad stores resolution / FullscreenMode / FrameRateLimit under its OWN
+# section, not the generic Engine one — so a missing FrameRateLimit must be
+# added here (with the Engine section as a fallback).
+_GFX_SECTION = "[/Script/Squad.SQGameUserSettings]"
+_GFX_SECTION_FALLBACK = "[/Script/Engine.GameUserSettings]"
 
 
 def write_seed_gfx(ini_path, res_x, res_y, fps):
@@ -606,10 +610,13 @@ def write_seed_gfx(ini_path, res_x, res_y, fps):
             result["after"][k] = newline.split("=", 1)[1].strip()
         out.append(newline)
 
-    # Add FrameRateLimit if it wasn't present, inside the GameUserSettings section.
+    # Add FrameRateLimit if it wasn't present, inside Squad's settings section
+    # (falling back to the Engine section only if Squad's isn't found).
     if "FrameRateLimit" not in result["keys_found"]:
         added_line = f"FrameRateLimit={float(fps):.6f}\n"
         insert_at = _section_insert_index(out, _GFX_SECTION)
+        if insert_at is None:
+            insert_at = _section_insert_index(out, _GFX_SECTION_FALLBACK)
         if insert_at is not None:
             out.insert(insert_at, added_line)
             result["keys_added"].append("FrameRateLimit")
