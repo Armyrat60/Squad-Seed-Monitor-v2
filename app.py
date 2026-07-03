@@ -324,37 +324,41 @@ class SeedMonitorApp(ctk.CTk):
         p = self.tab_server
 
         # --- Search box ---
-        ctk.CTkLabel(p, text="Find a server", text_color=WARN,
-                     font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=12, pady=(10, 2))
+        ctk.CTkLabel(p, text="Find a server", text_color=TEXT,
+                     font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=14, pady=(12, 2))
         srow = ctk.CTkFrame(p, fg_color="transparent")
-        srow.pack(fill="x", padx=12)
+        srow.pack(fill="x", padx=14)
         self.search_entry = ctk.CTkEntry(srow, placeholder_text="Search name or paste BM ID",
-                                         height=34)
+                                         height=34, fg_color=SURFACE_2, border_color=BORDER)
         self.search_entry.pack(side="left", fill="x", expand=True, padx=(0, 6))
         self.search_entry.bind("<Return>", lambda e: self.do_search())
-        ctk.CTkButton(srow, text="Search", width=80, height=34,
-                      command=self.do_search).pack(side="left", padx=2)
-        ctk.CTkButton(srow, text="Use ID", width=70, height=34, fg_color="#3d4652",
-                      command=self.use_id).pack(side="left", padx=2)
+        ctk.CTkButton(srow, text="Search", width=80, height=34, fg_color=ACCENT,
+                      hover_color=ACCENT_HOVER, command=self.do_search).pack(side="left", padx=2)
+        ctk.CTkButton(srow, text="Use ID", width=70, height=34, fg_color=NEUTRAL_BTN,
+                      hover_color=NEUTRAL_HOVER, command=self.use_id).pack(side="left", padx=2)
 
         # --- Inline results list (no popup) ---
         self.results_header = ctk.CTkLabel(p, text="", text_color=MUTED,
                                            font=ctk.CTkFont(size=11))
-        self.results_header.pack(anchor="w", padx=14, pady=(8, 0))
-        self.results_scroll = ctk.CTkScrollableFrame(p, height=200)
-        self.results_scroll.pack(fill="x", padx=10, pady=(2, 6))
+        self.results_header.pack(anchor="w", padx=16, pady=(8, 0))
+        self.results_scroll = ctk.CTkScrollableFrame(p, height=200, fg_color=SURFACE,
+                                                     border_width=1, border_color=BORDER)
+        self.results_scroll.pack(fill="x", padx=12, pady=(2, 6))
 
         # --- Favorites dashboard (live status across all saved servers) ---
         favhdr = ctk.CTkFrame(p, fg_color="transparent")
-        favhdr.pack(fill="x", padx=12, pady=(8, 0))
-        ctk.CTkLabel(favhdr, text="Favorites \u00b7 live status", text_color=WARN,
+        favhdr.pack(fill="x", padx=14, pady=(8, 0))
+        ctk.CTkLabel(favhdr, text="Favorites \u00b7 live status", text_color=TEXT,
                      font=ctk.CTkFont(size=14, weight="bold")).pack(side="left")
-        ctk.CTkButton(favhdr, text="\u2b50 Save current", width=110,
+        ctk.CTkButton(favhdr, text="\u2b50 Save current", width=110, fg_color=NEUTRAL_BTN,
+                      hover_color=NEUTRAL_HOVER,
                       command=self.save_current_favorite).pack(side="right", padx=(6, 0))
-        ctk.CTkButton(favhdr, text="\u21bb Refresh", width=84, fg_color="#3d4652",
+        ctk.CTkButton(favhdr, text="\u21bb Refresh", width=84, fg_color=NEUTRAL_BTN,
+                      hover_color=NEUTRAL_HOVER,
                       command=self.refresh_favorite_status).pack(side="right")
-        self.fav_scroll = ctk.CTkScrollableFrame(p, height=220)
-        self.fav_scroll.pack(fill="both", expand=True, padx=10, pady=(2, 8))
+        self.fav_scroll = ctk.CTkScrollableFrame(p, height=220, fg_color=SURFACE,
+                                                 border_width=1, border_color=BORDER)
+        self.fav_scroll.pack(fill="both", expand=True, padx=12, pady=(2, 8))
         self._refresh_favorites()
 
     def _show_results(self, results):
@@ -527,20 +531,20 @@ class SeedMonitorApp(ctk.CTk):
         widget.bind("<Leave>", hide)
 
     def _build_settings_tab(self):
-        p = ctk.CTkScrollableFrame(self.tab_settings)
+        p = ctk.CTkScrollableFrame(self.tab_settings, fg_color="transparent")
         p.pack(fill="both", expand=True)
         self._settings_widgets = {}
 
         def section(title):
-            ctk.CTkLabel(p, text=title, text_color=WARN,
-                         font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=10, pady=(14, 2))
+            ctk.CTkLabel(p, text=title, text_color=TEXT,
+                         font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=10, pady=(16, 2))
 
         def num_field(label, key, help_text, width=60):
             row = ctk.CTkFrame(p, fg_color="transparent")
             row.pack(fill="x", padx=10, pady=(4, 0))
-            lbl = ctk.CTkLabel(row, text=label, anchor="w")
+            lbl = ctk.CTkLabel(row, text=label, anchor="w", text_color=TEXT)
             lbl.pack(side="left", fill="x", expand=True)
-            e = ctk.CTkEntry(row, width=width)
+            e = ctk.CTkEntry(row, width=width, fg_color=SURFACE_2, border_color=BORDER)
             e.insert(0, str(self.cfg.get(key, "")))
             e.pack(side="right")
             self._settings_widgets[key] = ("num", e)
@@ -613,13 +617,15 @@ class SeedMonitorApp(ctk.CTk):
                "to the system tray instead (monitoring keeps running). Requires optional "
                "'pystray' + 'Pillow'.")
 
-        ctk.CTkButton(p, text="Save Settings", command=self.save_settings_tab
-                      ).pack(pady=(16, 8))
+        ctk.CTkButton(p, text="Save Settings", width=160, fg_color=ACCENT,
+                      hover_color=ACCENT_HOVER, command=self.save_settings_tab
+                      ).pack(pady=(18, 8))
         self.lbl_settings_saved = ctk.CTkLabel(p, text="", text_color=ACCENT)
         self.lbl_settings_saved.pack(pady=(0, 6))
 
         section("Shortcuts")
-        ctk.CTkButton(p, text="Create Desktop Shortcut", width=200, fg_color="#3d4652",
+        ctk.CTkButton(p, text="Create Desktop Shortcut", width=200, fg_color=NEUTRAL_BTN,
+                      hover_color=NEUTRAL_HOVER,
                       command=self.make_desktop_shortcut).pack(pady=(2, 2))
         ctk.CTkLabel(p, text="To pin to the taskbar: launch the app, then right-click its "
                              "taskbar icon → Pin to taskbar.",
@@ -640,12 +646,15 @@ class SeedMonitorApp(ctk.CTk):
     def _build_log_tab(self):
         p = self.tab_log
         bar = ctk.CTkFrame(p, fg_color="transparent")
-        bar.pack(fill="x", padx=6, pady=(6, 0))
-        ctk.CTkButton(bar, text="Refresh", width=80, command=self._refresh_log).pack(side="left", padx=2)
-        ctk.CTkButton(bar, text="Open log folder", width=120, fg_color="#3d4652",
+        bar.pack(fill="x", padx=8, pady=(8, 0))
+        ctk.CTkButton(bar, text="Refresh", width=80, fg_color=ACCENT, hover_color=ACCENT_HOVER,
+                      command=self._refresh_log).pack(side="left", padx=2)
+        ctk.CTkButton(bar, text="Open log folder", width=120, fg_color=NEUTRAL_BTN,
+                      hover_color=NEUTRAL_HOVER,
                       command=self._open_log_folder).pack(side="left", padx=2)
-        self.log_box = ctk.CTkTextbox(p, font=ctk.CTkFont(family="Consolas", size=11))
-        self.log_box.pack(fill="both", expand=True, padx=6, pady=6)
+        self.log_box = ctk.CTkTextbox(p, font=ctk.CTkFont(family="Consolas", size=11),
+                                      fg_color=SURFACE, border_width=1, border_color=BORDER)
+        self.log_box.pack(fill="both", expand=True, padx=8, pady=8)
         self._refresh_log()
 
     def _refresh_log(self):
