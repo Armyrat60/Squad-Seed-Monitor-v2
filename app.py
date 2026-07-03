@@ -70,8 +70,8 @@ class SeedMonitorApp(ctk.CTk):
         self.log = core.setup_logger()
 
         self.title(f"{core.APP_TITLE}  v{core.__version__}")
-        self.geometry("620x860")
-        self.minsize(600, 820)
+        self.geometry("620x880")     # tall enough to show the whole Monitor tab
+        self.minsize(560, 560)       # ...but can shrink to a compact box (it scrolls)
         self.configure(fg_color=WINDOW_BG)
         try:
             ico = _resource_path(os.path.join("assets", "icon.ico"))
@@ -183,7 +183,7 @@ class SeedMonitorApp(ctk.CTk):
 
         def section(num, title):
             hdr = ctk.CTkFrame(p, fg_color="transparent")
-            hdr.pack(fill="x", padx=20, pady=(14, 2))
+            hdr.pack(fill="x", padx=20, pady=(9, 1))
             ctk.CTkLabel(hdr, text=num, text_color=ACCENT,
                          font=ctk.CTkFont(size=15, weight="bold")).pack(side="left", padx=(0, 8))
             ctk.CTkLabel(hdr, text=title, text_color=TEXT,
@@ -191,7 +191,7 @@ class SeedMonitorApp(ctk.CTk):
             return hdr
 
         def divider():
-            ctk.CTkFrame(p, height=1, fg_color=BORDER).pack(fill="x", padx=20, pady=(12, 0))
+            ctk.CTkFrame(p, height=1, fg_color=BORDER).pack(fill="x", padx=20, pady=(8, 0))
 
         # --- Status card (elevated surface) ---
         status = ctk.CTkFrame(p, fg_color=SURFACE, corner_radius=12,
@@ -285,33 +285,31 @@ class SeedMonitorApp(ctk.CTk):
                       command=self.undo_all).grid(row=1, column=0, columnspan=2, padx=5,
                                                   pady=2, sticky="ew")
 
-        # --- When seeding is done (elevated surface; border follows the action) ---
-        self.act_card = ctk.CTkFrame(p, fg_color=SURFACE, corner_radius=12,
+        # --- When seeding is done (compact; border follows the action) ---
+        self.act_card = ctk.CTkFrame(p, fg_color=SURFACE, corner_radius=10,
                                      border_width=2, border_color=ACCENT)
-        self.act_card.pack(fill="x", padx=12, pady=(18, 10))
-        ctk.CTkLabel(self.act_card, text="\u2714  WHEN SEEDING IS DONE", text_color=TEXT,
-                     font=ctk.CTkFont(size=15, weight="bold")).pack(pady=(14, 6))
+        self.act_card.pack(fill="x", padx=12, pady=(12, 8))
         trig = ctk.CTkFrame(self.act_card, fg_color="transparent")
-        trig.pack(pady=(0, 8))
-        ctk.CTkLabel(trig, text="Fires when the server reaches", text_color=MUTED,
-                     font=ctk.CTkFont(size=12)).grid(row=0, column=0, padx=(0, 6))
-        self.spin_target = ctk.CTkEntry(trig, width=54, justify="center",
+        trig.pack(pady=(10, 6))
+        ctk.CTkLabel(trig, text="\u2714 When seeded (", text_color=TEXT,
+                     font=ctk.CTkFont(size=12, weight="bold")).grid(row=0, column=0)
+        self.spin_target = ctk.CTkEntry(trig, width=46, height=26, justify="center",
                                         fg_color=SURFACE_2, border_color=BORDER)
         self.spin_target.insert(0, str(self.cfg["target_players"]))
-        self.spin_target.grid(row=0, column=1)
+        self.spin_target.grid(row=0, column=1, padx=2)
         self.spin_target.bind("<FocusOut>", lambda e: self.on_settings_change())
         self.spin_target.bind("<Return>", lambda e: self.on_settings_change())
-        ctk.CTkLabel(trig, text="players, then:", text_color=MUTED,
-                     font=ctk.CTkFont(size=12)).grid(row=0, column=2, padx=(6, 0))
+        ctk.CTkLabel(trig, text="players), do:", text_color=TEXT,
+                     font=ctk.CTkFont(size=12, weight="bold")).grid(row=0, column=2)
         self.action_seg = ctk.CTkSegmentedButton(
             self.act_card, values=["Do Nothing", "Kill Process", "Shutdown PC"],
             variable=self.action_var, command=self.set_action,
             selected_color=ACCENT, selected_hover_color=ACCENT_HOVER,
-            font=ctk.CTkFont(size=13, weight="bold"), height=40)
-        self.action_seg.pack(padx=16, fill="x")
+            font=ctk.CTkFont(size=12, weight="bold"), height=32)
+        self.action_seg.pack(padx=12, fill="x")
         self.lbl_action_desc = ctk.CTkLabel(self.act_card, text="", text_color=ACCENT,
-                                            font=ctk.CTkFont(size=12, weight="bold"))
-        self.lbl_action_desc.pack(pady=(10, 14))
+                                            font=ctk.CTkFont(size=11))
+        self.lbl_action_desc.pack(pady=(6, 10))
         self._update_action_desc(self.action_var.get())
 
         self.btn_abort = ctk.CTkButton(p, text="ABORT SHUTDOWN", fg_color=DANGER,
