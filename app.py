@@ -537,9 +537,11 @@ class SeedMonitorApp(ctk.CTk):
 
         section("Connection")
         num_field("Connect port override (blank = auto)", "connect_port_override",
-                  "Connect uses the server's Steam QUERY port (auto-detected from "
-                  "BattleMetrics). Only set this if Connect still fails — enter the exact "
-                  "query port your host uses.", width=90)
+                  "Connect launches Squad with +connect <ip>:<port> using the game port "
+                  "from BattleMetrics. Only set this if your host uses a different join "
+                  "port. Note: Steam's connect path is buggy for Squad, so the in-game "
+                  "browser is the reliable fallback (the address is copied for you).",
+                  width=90)
 
         section("App")
         toggle("Desktop notifications", "notifications",
@@ -763,15 +765,24 @@ class SeedMonitorApp(ctk.CTk):
         self.check_api()
 
     def connect_server(self):
-        if self.cfg.get("connect"):
-            url = core.steam_connect_url(self.cfg)
-            self.log.info("connect requested -> %s (query_port=%s override=%s)",
-                          url, self.cfg.get("query_port"),
-                          self.cfg.get("connect_port_override") or "-")
-            webbrowser.open(url)
-        else:
+        connect = self.cfg.get("connect")
+        if not connect:
             self._set_status("No server selected - pick one on the Server tab", WARN)
             webbrowser.open(core.LAUNCH_URL)
+            return
+        url = core.steam_connect_url(self.cfg)
+        self.log.info("connect requested -> %s", url)
+        # Copy the address as a fallback: Steam's connect path is buggy for Squad,
+        # so if it lands on the menu the user can paste this into the in-game
+        # server browser's IP search.
+        try:
+            self.clipboard_clear()
+            self.clipboard_append(connect)
+        except Exception:
+            pass
+        webbrowser.open(url)
+        self._set_status(f"Launching Squad → {connect} (copied — paste in the "
+                         f"in-game browser if it doesn't auto-join)", ACCENT)
 
     # -------------------------------------------------------- settings --- #
     def on_settings_change(self):

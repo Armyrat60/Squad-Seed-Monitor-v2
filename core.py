@@ -330,30 +330,28 @@ def effective_connect(cfg):
 
 
 def steam_connect_url(cfg):
-    """Build the `steam://connect` URL that launches Squad AND joins the server.
+    """Build the URL that launches Squad and tries to join the server.
 
-    Steam identifies which game a server belongs to by querying its *Steam query
-    port* (BattleMetrics `portQuery`), NOT the game port. Handing it the game
-    port is what produces "app id specified by server is invalid". So we connect
-    on the query port; a manual `connect_port_override` wins if set, and the game
-    port is only a last-resort fallback.
+    We deliberately AVOID `steam://connect/<ip:port>`: it is broken in the Steam
+    client for Squad (and Arma 3, HLL, Rust, ARK, …) since a Sept-2023 update —
+    Steam can't resolve the app id and pops "app id specified by server is
+    invalid". That's a Steam bug, not something we can fix by changing ports.
 
-    Returns the plain launch URL if we have no address.
+    Instead we launch Squad by its appid and pass `+connect <ip:port>/` (the
+    trailing slash matters), which bypasses Steam's broken server-query path.
+    Uses the game port; a `connect_port_override` wins if set. Auto-join can
+    still be blocked by EAC on some setups — the in-game browser is the reliable
+    fallback, so callers should surface the address too.
     """
     connect = cfg.get("connect") or ""
     if not connect or ":" not in connect:
         return LAUNCH_URL
-    ip = connect.rsplit(":", 1)[0]
+    ip, game_port = connect.rsplit(":", 1)
     override = str(cfg.get("connect_port_override", "")).strip()
-    if override.isdigit():
-        port = override
-    elif cfg.get("query_port"):
-        port = str(cfg["query_port"])
-    else:
-        port = connect.rsplit(":", 1)[1]  # game port fallback
+    port = override if override.isdigit() else game_port
     if not ip or not port:
         return LAUNCH_URL
-    return f"steam://connect/{ip}:{port}"
+    return f"{LAUNCH_URL}+connect%20{ip}:{port}/"
 
 
 # --------------------------------------------------------------------------- #
