@@ -88,7 +88,7 @@ class SeedMonitorApp(ctk.CTk):
         sid, sname, sconnect = core.resolve_startup_server(self.cfg)
         if sid:
             self.cfg.update({"server_id": sid, "server_name": sname, "connect": sconnect})
-            self.lbl_server.configure(text=self._server_text())
+            self._refresh_server_header()
             self.check_api()
         else:
             self._set_status("No server yet - use the Server tab to find one", WARN)
@@ -106,11 +106,19 @@ class SeedMonitorApp(ctk.CTk):
         self.banner_btn.pack(side="right", padx=8, pady=6)
         # not packed yet -> shown only when update found
 
-        # Compact current-server header (always visible, small)
-        self.lbl_server = ctk.CTkLabel(self, text=self._server_text(),
+        # Compact current-server header (always visible) with a favorite star
+        hdr = ctk.CTkFrame(self, fg_color="transparent")
+        hdr.pack(pady=(10, 4))
+        self.btn_fav = ctk.CTkButton(hdr, text="☆", width=36,
+                                     fg_color="#3d4652", hover_color="#4a5560",
+                                     font=ctk.CTkFont(size=18),
+                                     command=self.toggle_favorite_current)
+        self.btn_fav.pack(side="left", padx=(0, 8))
+        self.lbl_server = ctk.CTkLabel(hdr, text=self._server_text(),
                                        text_color=MUTED, font=ctk.CTkFont(size=12),
-                                       wraplength=580)
-        self.lbl_server.pack(pady=(10, 4))
+                                       wraplength=520, justify="left")
+        self.lbl_server.pack(side="left")
+        self._update_fav_star()
 
         # Tabview with larger tab labels
         self.tabs = ctk.CTkTabview(self, height=700)
@@ -332,7 +340,7 @@ class SeedMonitorApp(ctk.CTk):
                          "connect": fav.get("connect", "")})
         core.save_config(self.cfg)
         self.log.info("switched to favorite: %s", fav.get("name"))
-        self.lbl_server.configure(text=self._server_text())
+        self._refresh_server_header()
         self.over_threshold_count = 0
         self.prev_seeding = None
         self._refresh_favorites()
@@ -446,8 +454,9 @@ class SeedMonitorApp(ctk.CTk):
                "Check GitHub for a newer version when the app starts. Never interrupts "
                "monitoring - just shows a banner if one exists.")
         toggle("Minimize to tray", "minimize_to_tray",
-               "The X button hides to the system tray instead of quitting, so monitoring "
-               "keeps running. Requires optional 'pystray' + 'Pillow'.")
+               "Off by default: the X button quits the app. Turn this on to make X hide "
+               "to the system tray instead (monitoring keeps running). Requires optional "
+               "'pystray' + 'Pillow'.")
 
         ctk.CTkButton(p, text="Save Settings", command=self.save_settings_tab
                       ).pack(pady=(16, 8))
@@ -523,6 +532,37 @@ class SeedMonitorApp(ctk.CTk):
         connect = self.cfg.get("connect") or "no connect info"
         return f"{name}\n{connect}"
 
+    def _refresh_server_header(self):
+        """Update the always-visible server label and its favorite star."""
+        self.lbl_server.configure(text=self._server_text())
+        self._update_fav_star()
+
+    def _update_fav_star(self):
+        """Reflect whether the current server is favorited on the header star."""
+        if not hasattr(self, "btn_fav"):
+            return
+        sid = self.cfg.get("server_id")
+        fav = bool(sid) and core.is_favorite(self.cfg, sid)
+        self.btn_fav.configure(text=("★" if fav else "☆"),
+                               text_color=(WARN if fav else MUTED))
+
+    def toggle_favorite_current(self):
+        """Star toggle on the header: favorite or unfavorite the current server."""
+        sid = self.cfg.get("server_id")
+        if not sid:
+            self._set_status("No server selected - pick one on the Server tab", WARN)
+            return
+        if core.is_favorite(self.cfg, sid):
+            core.remove_favorite(self.cfg, sid)
+            self.log.info("unfavorited: %s", self.cfg.get("server_name"))
+        else:
+            core.add_favorite(self.cfg, sid, self.cfg.get("server_name", ""),
+                              self.cfg.get("connect", ""))
+            self.log.info("favorited: %s", self.cfg.get("server_name"))
+        core.save_config(self.cfg)
+        self._update_fav_star()
+        self._refresh_favorites()
+
     def _target_text(self):
         return f"Target:  >= {self.cfg['target_players']} players"
 
@@ -575,7 +615,7 @@ class SeedMonitorApp(ctk.CTk):
                          "connect": r["connect"]})
         core.save_config(self.cfg)
         self.log.info("server selected: %s (id=%s)", r["name"], r["id"])
-        self.lbl_server.configure(text=self._server_text())
+        self._refresh_server_header()
         self.over_threshold_count = 0
         self.prev_seeding = None
         self._refresh_favorites()
@@ -606,7 +646,7 @@ class SeedMonitorApp(ctk.CTk):
         threading.Thread(target=worker, daemon=True).start()
 
     def _after_id_set(self):
-        self.lbl_server.configure(text=self._server_text())
+        self._refresh_server_header()
         self.over_threshold_count = 0
         self.prev_seeding = None
         self._refresh_favorites()
@@ -805,7 +845,7 @@ class SeedMonitorApp(ctk.CTk):
         mode = info.get("game_mode", "")
         if info.get("connect") and info["connect"] != self.cfg.get("connect"):
             self.cfg["connect"] = info["connect"]
-            self.lbl_server.configure(text=self._server_text())
+            self._refresh_server_header()
 
         # layer display
         suffix = f"  [{mode}]" if mode else ""

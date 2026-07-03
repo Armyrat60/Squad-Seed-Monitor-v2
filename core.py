@@ -57,7 +57,7 @@ DEFAULT_CONFIG = {
     "min_sane_players": 0,
     "notifications": True,           # desktop notifications
     "check_updates": True,           # check GitHub for a newer release at startup
-    "minimize_to_tray": True,
+    "minimize_to_tray": False,   # X quits the app by default; opt in to tray
 }
 
 
