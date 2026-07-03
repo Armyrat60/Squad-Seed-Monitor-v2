@@ -9,8 +9,14 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
 
+import os
+
 # Bundle CustomTkinter's data (themes, assets) and its submodules.
 ctk_datas = collect_data_files("customtkinter")
+
+# Bundle the app icon so the running window can set it too (not just the exe).
+icon_path = os.path.join("assets", "icon.ico")
+app_datas = [(icon_path, "assets")] if os.path.exists(icon_path) else []
 
 # Optional runtime deps: include if installed so the exe has full features,
 # but the app degrades gracefully if a user built without them.
@@ -26,7 +32,7 @@ a = Analysis(
     ["app.py"],
     pathex=[],
     binaries=[],
-    datas=ctk_datas,
+    datas=ctk_datas + app_datas,
     hiddenimports=hidden,
     hookspath=[],
     runtime_hooks=[],
@@ -58,5 +64,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    # icon="app.ico",       # add an .ico here if you make one
+    icon=icon_path if os.path.exists(icon_path) else None,
 )

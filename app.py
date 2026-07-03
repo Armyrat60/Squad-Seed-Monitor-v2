@@ -10,6 +10,7 @@ Run:  python app.py   (Windows; needs `pip install customtkinter requests pycaw 
 """
 
 import os
+import sys
 import threading
 import webbrowser
 import tkinter as tk
@@ -17,6 +18,12 @@ import tkinter as tk
 import customtkinter as ctk
 
 import core
+
+
+def _resource_path(rel):
+    """Path to a bundled resource in both source and PyInstaller-frozen runs."""
+    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, rel)
 
 try:
     from pycaw.pycaw import AudioUtilities, ISimpleAudioVolume
@@ -27,6 +34,13 @@ except Exception:
 try:
     import ctypes
     ctypes.windll.shcore.SetProcessDpiAwareness(1)
+except Exception:
+    pass
+
+try:
+    # Distinct taskbar identity so the custom window icon is used (esp. from
+    # source), instead of grouping under python.exe's icon.
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("SquadSeedMonitor.v2")
 except Exception:
     pass
 
@@ -49,6 +63,12 @@ class SeedMonitorApp(ctk.CTk):
         self.title(f"{core.APP_TITLE}  v{core.__version__}")
         self.geometry("620x860")
         self.minsize(600, 820)
+        try:
+            ico = _resource_path(os.path.join("assets", "icon.ico"))
+            if os.path.exists(ico):
+                self.iconbitmap(ico)
+        except Exception:
+            pass
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         # runtime state
@@ -764,12 +784,14 @@ class SeedMonitorApp(ctk.CTk):
                 self.btn_apply.configure(text="No keys found", fg_color=DANGER)
                 return
 
-            self.log.info("applied seed config to %s | keys=%s | before=%s after=%s",
-                          ini, res["keys_found"], res["before"], res["after"])
+            self.log.info("applied seed config to %s | keys=%s added=%s | before=%s after=%s",
+                          ini, res["keys_found"], res.get("keys_added", []),
+                          res["before"], res["after"])
             self.seed_config_applied = True
-            self.btn_apply.configure(text="Restore", fg_color="#e67e22")
+            self.btn_apply.configure(text="Applied ✓", fg_color="#2ecc71", state="disabled")
             self.btn_restore.configure(state="normal")
-            self._set_status(f"Applied {rx}x{ry} @ {fps}fps ({len(res['keys_found'])} keys)", ACCENT)
+            n = len(res["keys_found"]) + len(res.get("keys_added", []))
+            self._set_status(f"Applied {rx}x{ry} @ {fps}fps ({n} keys)", ACCENT)
         except Exception as e:
             self.log.warning("config error: %s", e)
             self.btn_apply.configure(text="Error")
@@ -792,15 +814,17 @@ class SeedMonitorApp(ctk.CTk):
                 self.seed_config_applied = False
                 self.log.info("graphics settings restored%s",
                               " (user)" if user_initiated else "")
-                if user_initiated:
-                    self.btn_apply.configure(text="Apply", fg_color=("#3a7ebf", "#1f538d"))
-                    self.btn_restore.configure(state="disabled")
+                # Always reset the apply/restore buttons to the un-applied state,
+                # whether the restore was manual or automatic (target/live).
+                self.btn_apply.configure(text="Apply", state="normal",
+                                         fg_color=("#3a7ebf", "#1f538d"))
+                self.btn_restore.configure(state="disabled")
+                if user_initiated and self.is_muted:
                     # Also unmute on manual restore, so "get back to playing" is one action
-                    if self.is_muted:
-                        if self._set_squad_mute(False):
-                            self.is_muted = False
-                            self.btn_mute.configure(text="Mute Audio", fg_color="#3d4652")
-                            self.log.info("game unmuted (with restore)")
+                    if self._set_squad_mute(False):
+                        self.is_muted = False
+                        self.btn_mute.configure(text="Mute Audio", fg_color="#3d4652")
+                        self.log.info("game unmuted (with restore)")
             except Exception as e:
                 self.log.warning("restore failed: %s", e)
 

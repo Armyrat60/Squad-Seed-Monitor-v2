@@ -509,11 +509,19 @@ _RES_Y_KEYS = ("ResolutionSizeY", "LastUserConfirmedResolutionSizeY", "DesiredSc
 _FPS_KEYS = ("FrameRateLimit",)
 
 
+_GFX_SECTION = "[/Script/Engine.GameUserSettings]"
+
+
 def write_seed_gfx(ini_path, res_x, res_y, fps):
     """Rewrite resolution + frame limit in the ini. Returns a dict describing
-    what changed: {before:{...}, after:{...}, wrote:bool, keys_found:[...]}.
-    Only touches lines that already exist (Squad's ini format)."""
-    result = {"before": {}, "after": {}, "wrote": False, "keys_found": []}
+    what changed: {before:{...}, after:{...}, wrote:bool, keys_found:[...],
+    keys_added:[...]}.
+
+    Existing keys are rewritten in place. If FrameRateLimit is absent (common —
+    Squad omits it until you touch the FPS setting), it's added to the
+    GameUserSettings section so the seeding FPS cap actually takes effect."""
+    result = {"before": {}, "after": {}, "wrote": False,
+              "keys_found": [], "keys_added": []}
     with open(ini_path, "r", encoding="utf-8", errors="ignore") as f:
         lines = f.readlines()
 
@@ -537,8 +545,39 @@ def write_seed_gfx(ini_path, res_x, res_y, fps):
             result["after"][k] = newline.split("=", 1)[1].strip()
         out.append(newline)
 
-    if result["keys_found"]:
+    # Add FrameRateLimit if it wasn't present, inside the GameUserSettings section.
+    if "FrameRateLimit" not in result["keys_found"]:
+        added_line = f"FrameRateLimit={float(fps):.6f}\n"
+        insert_at = _section_insert_index(out, _GFX_SECTION)
+        if insert_at is not None:
+            out.insert(insert_at, added_line)
+            result["keys_added"].append("FrameRateLimit")
+            result["after"]["FrameRateLimit"] = f"{float(fps):.6f}"
+
+    if result["keys_found"] or result["keys_added"]:
         with open(ini_path, "w", encoding="utf-8") as f:
             f.writelines(out)
         result["wrote"] = True
     return result
+
+
+def _section_insert_index(lines, section):
+    """Index just after the last key line of `section` (case-insensitive), so a
+    new key lands inside it. Returns None if the section isn't present."""
+    start = None
+    for i, line in enumerate(lines):
+        if line.strip().lower() == section.lower():
+            start = i
+            break
+    if start is None:
+        return None
+    i = start + 1
+    last = start + 1
+    while i < len(lines):
+        stripped = lines[i].strip()
+        if stripped.startswith("["):      # next section began
+            break
+        if "=" in stripped:
+            last = i + 1
+        i += 1
+    return last
