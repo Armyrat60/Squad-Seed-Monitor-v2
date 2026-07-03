@@ -331,18 +331,23 @@ def effective_connect(cfg):
 
 
 def steam_connect_url(cfg):
-    """Build the URL that launches Squad and tries to join the server.
+    """Build the URL that launches Squad and joins the server.
 
-    We deliberately AVOID `steam://connect/<ip:port>`: it is broken in the Steam
-    client for Squad (and Arma 3, HLL, Rust, ARK, …) since a Sept-2023 update —
-    Steam can't resolve the app id and pops "app id specified by server is
-    invalid". That's a Steam bug, not something we can fix by changing ports.
+    Two things matter here:
 
-    Instead we launch Squad by its appid and pass `+connect <ip:port>/` (the
-    trailing slash matters), which bypasses Steam's broken server-query path.
-    Uses the game port; a `connect_port_override` wins if set. Auto-join can
-    still be blocked by EAC on some setups — the in-game browser is the reliable
-    fallback, so callers should surface the address too.
+    1. `steam://connect/<ip:port>` is broken in the Steam client for Squad (and
+       Arma 3, HLL, Rust, ARK, …) since a Sept-2023 update — it can't resolve the
+       app id and pops "app id specified by server is invalid". So we don't use it.
+
+    2. Squad is an Unreal Engine game. UE takes the server address as a POSITIONAL
+       command-line argument (`SquadGame.exe <ip>:<port>`), NOT the Source-engine
+       `+connect` token — passing `+connect` just launches the game without
+       joining. So we hand the bare address to `steam://run/<appid>//<args>`.
+
+    Uses the game port; a `connect_port_override` wins if set. This only joins
+    when Squad is CLOSED (it launches WITH the address); if the game is already
+    running, the in-game Custom Browser is the way in — callers handle that and
+    copy the address.
     """
     connect = cfg.get("connect") or ""
     if not connect or ":" not in connect:
@@ -352,7 +357,7 @@ def steam_connect_url(cfg):
     port = override if override.isdigit() else game_port
     if not ip or not port:
         return LAUNCH_URL
-    return f"{LAUNCH_URL}+connect%20{ip}:{port}/"
+    return f"{LAUNCH_URL}{ip}:{port}"
 
 
 # --------------------------------------------------------------------------- #

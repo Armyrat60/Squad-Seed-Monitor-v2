@@ -47,10 +47,10 @@ closes Squad or shuts down your PC) so you don't have to babysit it.
    with Squad closed it launches the game *and* joins the server (wait through
    the loading screens; don't click during them). The server address is also
    copied to your clipboard. If Squad is already open, or it lands on the main
-   menu, paste that address into the in-game **Custom Browser**, or use the
-   **SquadBrowser** button ([squadbrowser.app](https://squadbrowser.app/)).
-   (Steam's own direct-connect has been broken for Squad since 2023 — a Valve
-   bug — so the in-game/web browser is the reliable path.)
+   menu, paste that address into the in-game **Custom Browser** (main menu →
+   Custom Browser → paste into the search/IP box → Join). Steam's own
+   direct-connect has been broken for Squad since 2023 (a Valve bug), so the
+   in-game browser is always the reliable fallback.
 4. Pick what happens when seeded: **Do Nothing** / **Kill Process** / **Shutdown PC**.
 5. Walk away. When the server seeds or goes live, your game is restored
    automatically (and Squad closes / PC shuts down if you chose that).

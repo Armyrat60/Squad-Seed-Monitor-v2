@@ -195,11 +195,9 @@ class SeedMonitorApp(ctk.CTk):
                       command=lambda: webbrowser.open(core.LAUNCH_URL)).grid(row=0, column=0, padx=6)
         ctk.CTkButton(jr, text="Connect", width=130, fg_color=ACCENT,
                       command=self.connect_server).grid(row=0, column=1, padx=6)
-        ctk.CTkButton(jr, text="SquadBrowser ↗", width=130, fg_color="#3d4652",
-                      command=self.open_squadbrowser).grid(row=0, column=2, padx=6)
         ctk.CTkLabel(p, text="Best with Squad CLOSED: Connect launches & joins (wait through "
                              "loading). If Squad is already open, paste the copied address into "
-                             "the in-game Custom Browser or use SquadBrowser.",
+                             "the in-game Custom Browser.",
                      text_color=MUTED, font=ctk.CTkFont(size=10), wraplength=580,
                      justify="center").pack(pady=(2, 0))
 
@@ -790,8 +788,8 @@ class SeedMonitorApp(ctk.CTk):
             self._set_status("No server selected - pick one on the Server tab", WARN)
             webbrowser.open(core.LAUNCH_URL)
             return
-        # Always copy the address so the in-game browser / SquadBrowser fallback
-        # is one paste away.
+        # Always copy the address so the in-game Custom Browser fallback is one
+        # paste away.
         try:
             self.clipboard_clear()
             self.clipboard_append(connect)
@@ -803,7 +801,7 @@ class SeedMonitorApp(ctk.CTk):
         if core.game_is_running():
             self.log.info("connect: Squad already running -> guide to browser (%s)", connect)
             self._set_status(f"Squad is already open — paste {connect} into the in-game "
-                             f"Custom Browser (copied), or use SquadBrowser.app.", WARN)
+                             f"Custom Browser (address copied).", WARN)
         else:
             url = core.steam_connect_url(self.cfg)
             self.log.info("connect requested -> %s", url)
@@ -812,18 +810,6 @@ class SeedMonitorApp(ctk.CTk):
                              f"menu; if it doesn't auto-join, use the in-game browser.", ACCENT)
         if not self.cfg.get("connect_help_shown"):
             self._show_connect_help(connect)
-
-    def open_squadbrowser(self):
-        """Open SquadBrowser.app and copy the address to paste/search there."""
-        connect = self.cfg.get("connect")
-        if connect:
-            try:
-                self.clipboard_clear()
-                self.clipboard_append(connect)
-            except Exception:
-                pass
-            self._set_status(f"Opened SquadBrowser.app — search {connect} (copied).", ACCENT)
-        webbrowser.open("https://squadbrowser.app/")
 
     def _show_connect_help(self, connect):
         """One-time warning: direct connect may fail (Steam bug); how to fall back."""
@@ -849,12 +835,9 @@ class SeedMonitorApp(ctk.CTk):
                   "If Squad is already open, or it lands on the main menu:\n"
                   "  1.  Main menu → Custom Browser\n"
                   "  2.  Paste (Ctrl+V) the address into the search / IP box\n"
-                  "  3.  Select the server and Join\n\n"
-                  "Or use SquadBrowser.app (button below) to find and join it.")
+                  "  3.  Select the server and Join")
         ).pack(pady=(0, 8), padx=16, anchor="w")
 
-        ctk.CTkButton(win, text="Open SquadBrowser.app ↗", width=200, fg_color="#3d4652",
-                      command=self.open_squadbrowser).pack(pady=(0, 6))
         dont = ctk.BooleanVar(value=True)
         ctk.CTkCheckBox(win, text="Don't show this again", variable=dont).pack(pady=(0, 8))
 
