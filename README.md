@@ -7,9 +7,15 @@ closes Squad or shuts down your PC) so you don't have to babysit it.
 
 ## Download & install
 
-1. Go to the [**Releases**](../../releases) page and download the latest
-   `SquadSeedMonitor.exe`.
-2. Double-click it. That's it — no installer, no Python needed.
+Go to the [**Releases**](../../releases) page and pick one:
+
+- **Installer (recommended)** — `SquadSeedMonitor-Setup-x.y.z.exe`. Run it; it
+  asks whether to add a **desktop shortcut**, installs the app, and adds a Start
+  Menu entry. It shows up in **Settings → Apps** where you can **uninstall** it;
+  re-running the installer **repairs** the install. Your settings/favorites live
+  in `%LOCALAPPDATA%\SquadSeedMonitor` and survive uninstalls and upgrades.
+- **Portable** — `SquadSeedMonitor.exe`. No installer; just double-click. Handy
+  for a USB stick or if you don't want to install.
 
 > **"Windows protected your PC" / SmartScreen warning?**
 > This is expected. The app is free and unsigned (code-signing certificates cost

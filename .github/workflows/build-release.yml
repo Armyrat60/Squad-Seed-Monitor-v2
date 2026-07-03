@@ -39,18 +39,30 @@ jobs:
           }
           Write-Host "Built dist/SquadSeedMonitor.exe"
 
-      # For tag pushes: publish a release with the exe attached.
+      # Build the Windows installer (desktop-shortcut prompt + uninstaller).
+      - name: Build installer (Inno Setup)
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\SquadSeedMonitor.iss
+          $setup = Get-ChildItem dist\SquadSeedMonitor-Setup-*.exe | Select-Object -First 1
+          if (-Not $setup) { Write-Error "Installer not produced"; exit 1 }
+          Write-Host "Built $($setup.FullName)"
+
+      # For tag pushes: publish a release with the exe AND installer attached.
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/SquadSeedMonitor.exe
+          files: |
+            dist/SquadSeedMonitor.exe
+            dist/SquadSeedMonitor-Setup-*.exe
           generate_release_notes: true
 
-      # For manual runs: just upload the exe as an artifact to download.
+      # For manual runs: upload the exe + installer as artifacts to download.
       - name: Upload artifact
         if: "!startsWith(github.ref, 'refs/tags/')"
         uses: actions/upload-artifact@v4
         with:
           name: SquadSeedMonitor
-          path: dist/SquadSeedMonitor.exe
+          path: |
+            dist/SquadSeedMonitor.exe
+            dist/SquadSeedMonitor-Setup-*.exe
