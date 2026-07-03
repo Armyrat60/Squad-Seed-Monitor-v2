@@ -64,36 +64,98 @@ DEFAULT_CONFIG = {
 # --------------------------------------------------------------------------- #
 #  Paths / config / logging
 # --------------------------------------------------------------------------- #
+_DATA_DIR = None  # cached: computed once per process
+
+
+def _exe_or_script_dir():
+    """Directory the exe (frozen) or this script (source) lives in."""
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+
 def app_dir():
-    try:
-        if getattr(sys, "frozen", False):
-            base = os.path.dirname(sys.executable)
-        else:
-            base = os.path.dirname(os.path.abspath(__file__))
-        testpath = os.path.join(base, ".write_test")
-        with open(testpath, "w") as f:
-            f.write("")
-        os.remove(testpath)
-        return base
-    except Exception:
-        return os.environ.get("LOCALAPPDATA", os.path.expanduser("~"))
+    """Stable per-user data directory for config + log.
+
+    Uses %LOCALAPPDATA%\\SquadSeedMonitor (created if missing) so settings and
+    favorites persist regardless of where the exe is launched from, and never
+    depend on a per-call writability check. Falls back to the exe/script folder,
+    then the home dir, only if that location can't be created/written.
+
+    Computed once and cached so save and the subsequent load can never disagree
+    on where the file lives.
+    """
+    global _DATA_DIR
+    if _DATA_DIR is not None:
+        return _DATA_DIR
+    candidates = [
+        os.path.join(os.environ.get("LOCALAPPDATA", ""), APP_TITLE.replace(" ", "")),
+        _exe_or_script_dir(),
+        os.path.expanduser("~"),
+    ]
+    for base in candidates:
+        if not base:
+            continue
+        try:
+            os.makedirs(base, exist_ok=True)
+            testpath = os.path.join(base, ".write_test")
+            with open(testpath, "w") as f:
+                f.write("")
+            os.remove(testpath)
+            _DATA_DIR = base
+            return _DATA_DIR
+        except Exception:
+            continue
+    _DATA_DIR = _exe_or_script_dir()  # last resort; never None
+    return _DATA_DIR
+
+
+def _legacy_config_paths():
+    """Older locations a config may already exist in (pre-stable-dir builds):
+    right next to the exe or the source script."""
+    seen, out = set(), []
+    for d in (_exe_or_script_dir(),):
+        p = os.path.abspath(os.path.join(d, CONFIG_FILENAME))
+        if p not in seen:
+            seen.add(p)
+            out.append(p)
+    return out
 
 
 def load_config():
     path = os.path.join(app_dir(), CONFIG_FILENAME)
     cfg = json.loads(json.dumps(DEFAULT_CONFIG))  # deep copy
+    migrated = False
+    saved = _read_config_file(path)
+    if saved is None:
+        # No config in the stable dir yet: adopt one from a legacy location
+        # (older builds stored it next to the exe/script) so favorites carry over.
+        for legacy in _legacy_config_paths():
+            if os.path.abspath(legacy) == os.path.abspath(path):
+                continue
+            saved = _read_config_file(legacy)
+            if saved is not None:
+                migrated = True
+                break
+    if isinstance(saved, dict):
+        for k in saved:
+            if k in DEFAULT_CONFIG:
+                cfg[k] = saved[k]
+    cfg = _validate_config(cfg)
+    if migrated:
+        save_config(cfg)  # write it into the stable location once
+    return cfg
+
+
+def _read_config_file(path):
+    """Return the parsed dict, or None if missing/unreadable/corrupt."""
     try:
         with open(path, "r", encoding="utf-8") as f:
-            saved = json.load(f)
-        if isinstance(saved, dict):
-            for k in saved:
-                if k in DEFAULT_CONFIG:
-                    cfg[k] = saved[k]
+            return json.load(f)
     except FileNotFoundError:
-        pass
+        return None
     except Exception:
-        pass  # corrupt -> defaults
-    return _validate_config(cfg)
+        return None
 
 
 def _validate_config(cfg):

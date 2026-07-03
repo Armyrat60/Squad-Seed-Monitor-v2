@@ -73,9 +73,14 @@ pushed (see `.github/workflows/build-release.yml`).
 
 ## Files it creates
 
-Next to the app: `seed_monitor_config.json` (your settings/favorites) and
-`seed_monitor.log` (an audit log of every poll and action). Both are safe to
-delete; the app recreates config from defaults.
+In a stable per-user folder — `%LOCALAPPDATA%\SquadSeedMonitor\` (i.e.
+`C:\Users\<you>\AppData\Local\SquadSeedMonitor\`) — it keeps
+`seed_monitor_config.json` (your settings/favorites) and `seed_monitor.log`
+(an audit log of every poll and action). Storing them here (rather than next to
+the exe) means your favorites persist no matter where you move or run the app
+from. Both are safe to delete; the app recreates config from defaults. If you
+have an older build's config sitting next to the exe, it's migrated here
+automatically on first launch.
 
 ## Notes
 
