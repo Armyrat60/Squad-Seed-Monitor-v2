@@ -48,10 +48,19 @@ except Exception:
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
 
-ACCENT = "#2fa572"
-WARN = "#f1c40f"
-DANGER = "#e74c3c"
-MUTED = "#8a8f98"
+ACCENT = "#2fa572"        # primary green — actions & positive status
+ACCENT_HOVER = "#2b9768"
+WARN = "#f1c40f"          # reserved: target line + genuine warnings only
+DANGER = "#e74c3c"        # destructive (shutdown)
+ORANGE = "#e67e22"        # revert / kill-process
+MUTED = "#8a8f98"         # secondary text
+TEXT = "#e6e9ee"          # primary text & section headers
+SURFACE = "#1c232b"       # card surfaces (sit above the window bg)
+SURFACE_2 = "#161b21"     # nested surfaces (graph)
+BORDER = "#2e3843"        # card borders & divider lines
+NEUTRAL_BTN = "#3d4652"   # secondary buttons
+NEUTRAL_HOVER = "#48525f"
+WINDOW_BG = "#12161b"     # app background — darker so cards lift off it
 
 
 class SeedMonitorApp(ctk.CTk):
@@ -63,6 +72,7 @@ class SeedMonitorApp(ctk.CTk):
         self.title(f"{core.APP_TITLE}  v{core.__version__}")
         self.geometry("620x860")
         self.minsize(600, 820)
+        self.configure(fg_color=WINDOW_BG)
         try:
             ico = _resource_path(os.path.join("assets", "icon.ico"))
             if os.path.exists(ico):
@@ -143,8 +153,10 @@ class SeedMonitorApp(ctk.CTk):
         self.lbl_server.pack(side="left")
         self._update_fav_star()
 
-        # Tabview with larger tab labels
-        self.tabs = ctk.CTkTabview(self, height=700)
+        # Tabview with larger tab labels. Tab bg = window bg so SURFACE cards lift.
+        self.tabs = ctk.CTkTabview(self, height=700, fg_color=WINDOW_BG,
+                                   segmented_button_selected_color=ACCENT,
+                                   segmented_button_selected_hover_color=ACCENT_HOVER)
         self.tabs.pack(fill="both", expand=True, padx=12, pady=(2, 8))
         try:
             self.tabs._segmented_button.configure(font=ctk.CTkFont(size=14, weight="bold"))
@@ -166,35 +178,36 @@ class SeedMonitorApp(ctk.CTk):
                      font=ctk.CTkFont(size=13)).pack(pady=40)
 
     def _build_monitor_tab(self):
-        # Scrollable; only the status and the action are boxed cards. The steps
-        # are light sections separated by thin dividers so they don't compete.
         p = ctk.CTkScrollableFrame(self.tab_monitor, fg_color="transparent")
         p.pack(fill="both", expand=True)
 
-        def section(title):
+        def section(num, title):
             hdr = ctk.CTkFrame(p, fg_color="transparent")
-            hdr.pack(fill="x", padx=18, pady=(12, 0))
-            ctk.CTkLabel(hdr, text=title, text_color=WARN,
+            hdr.pack(fill="x", padx=20, pady=(14, 2))
+            ctk.CTkLabel(hdr, text=num, text_color=ACCENT,
+                         font=ctk.CTkFont(size=15, weight="bold")).pack(side="left", padx=(0, 8))
+            ctk.CTkLabel(hdr, text=title, text_color=TEXT,
                          font=ctk.CTkFont(size=13, weight="bold")).pack(side="left")
             return hdr
 
         def divider():
-            ctk.CTkFrame(p, height=1, fg_color="#2c343d").pack(fill="x", padx=18, pady=(10, 0))
+            ctk.CTkFrame(p, height=1, fg_color=BORDER).pack(fill="x", padx=20, pady=(12, 0))
 
-        # --- Status card (boxed): big count + info, thin graph below ---
-        status = ctk.CTkFrame(p, fg_color="#20272e", corner_radius=10)
-        status.pack(fill="x", padx=14, pady=(10, 2))
+        # --- Status card (elevated surface) ---
+        status = ctk.CTkFrame(p, fg_color=SURFACE, corner_radius=12,
+                              border_width=1, border_color=BORDER)
+        status.pack(fill="x", padx=12, pady=(12, 2))
         row = ctk.CTkFrame(status, fg_color="transparent")
-        row.pack(fill="x", padx=14, pady=(10, 2))
+        row.pack(fill="x", padx=16, pady=(12, 2))
         left = ctk.CTkFrame(row, fg_color="transparent")
         left.pack(side="left")
-        self.lbl_players = ctk.CTkLabel(left, text="--",
-                                        font=ctk.CTkFont(size=46, weight="bold"))
+        self.lbl_players = ctk.CTkLabel(left, text="--", text_color=TEXT,
+                                        font=ctk.CTkFont(size=48, weight="bold"))
         self.lbl_players.pack()
-        ctk.CTkLabel(left, text="players", text_color=MUTED,
-                     font=ctk.CTkFont(size=11)).pack()
+        ctk.CTkLabel(left, text="PLAYERS", text_color=MUTED,
+                     font=ctk.CTkFont(size=10, weight="bold")).pack()
         infocol = ctk.CTkFrame(row, fg_color="transparent")
-        infocol.pack(side="left", fill="x", expand=True, padx=(16, 0))
+        infocol.pack(side="left", fill="x", expand=True, padx=(18, 0))
         self.lbl_status = ctk.CTkLabel(infocol, text="Status: idle", text_color=ACCENT,
                                        font=ctk.CTkFont(size=13, weight="bold"), anchor="w")
         self.lbl_status.pack(anchor="w")
@@ -205,89 +218,100 @@ class SeedMonitorApp(ctk.CTk):
         self.lbl_timer = ctk.CTkLabel(infocol, text="Next check in -- s", text_color=MUTED,
                                       font=ctk.CTkFont(size=11), anchor="w")
         self.lbl_timer.pack(anchor="w")
-        self.graph = ctk.CTkCanvas(status, height=50, highlightthickness=0, bg="#1a1e22")
-        self.graph.pack(fill="x", padx=12, pady=(4, 10))
+        self.graph = ctk.CTkCanvas(status, height=50, highlightthickness=0, bg=SURFACE_2)
+        self.graph.pack(fill="x", padx=14, pady=(6, 14))
         self.graph.bind("<Configure>", lambda e: self._draw_graph())
 
         # --- Step 1: set low graphics (Squad closed) ---
-        h1 = section("\u2460  Set low graphics \u2014 Squad CLOSED")
-        ctk.CTkButton(h1, text="\u24d8 How it works", width=104, height=24, fg_color="#3d4652",
+        h1 = section("\u2460", "Set low graphics  \u00b7  Squad CLOSED")
+        ctk.CTkButton(h1, text="\u24d8 How it works", width=104, height=26,
+                      fg_color=NEUTRAL_BTN, hover_color=NEUTRAL_HOVER,
                       command=self._show_seed_mode_help).pack(side="right")
         tr = ctk.CTkFrame(p, fg_color="transparent")
-        tr.pack(anchor="w", padx=18, pady=(6, 0))
+        tr.pack(anchor="w", padx=20, pady=(6, 0))
         ctk.CTkLabel(tr, text="Resolution", text_color=MUTED,
                      font=ctk.CTkFont(size=10)).grid(row=0, column=0, padx=4, sticky="w")
         ctk.CTkLabel(tr, text="FPS limit", text_color=MUTED,
                      font=ctk.CTkFont(size=10)).grid(row=0, column=1, padx=4, sticky="w")
         ctk.CTkOptionMenu(tr, values=["1024x768", "1280x720", "1600x900", "1920x1080"],
-                          variable=self.res_var, width=104).grid(row=1, column=0, padx=4)
+                          variable=self.res_var, width=104, fg_color=NEUTRAL_BTN,
+                          button_color=NEUTRAL_BTN, button_hover_color=NEUTRAL_HOVER
+                          ).grid(row=1, column=0, padx=4)
         ctk.CTkOptionMenu(tr, values=["5", "15", "30", "60", "120", "144"],
-                          variable=self.fps_var, width=74).grid(row=1, column=1, padx=4)
-        self.btn_apply = ctk.CTkButton(tr, text="Apply", width=78,
+                          variable=self.fps_var, width=74, fg_color=NEUTRAL_BTN,
+                          button_color=NEUTRAL_BTN, button_hover_color=NEUTRAL_HOVER
+                          ).grid(row=1, column=1, padx=4)
+        self.btn_apply = ctk.CTkButton(tr, text="Apply", width=78, fg_color=ACCENT,
+                                       hover_color=ACCENT_HOVER,
                                        command=self.toggle_apply_restore)
         self.btn_apply.grid(row=1, column=2, padx=4)
-        self.btn_restore = ctk.CTkButton(tr, text="Restore", width=80, fg_color="#e67e22",
-                                         state="disabled", command=self.manual_restore)
+        self.btn_restore = ctk.CTkButton(tr, text="Restore", width=80, fg_color=ORANGE,
+                                         hover_color="#cf6f1e", state="disabled",
+                                         command=self.manual_restore)
         self.btn_restore.grid(row=1, column=3, padx=4)
         divider()
 
         # --- Step 2: launch & join ---
-        section("\u2461  Launch & join")
+        section("\u2461", "Launch & join")
         jr = ctk.CTkFrame(p, fg_color="transparent")
-        jr.pack(anchor="w", padx=18, pady=(6, 0))
-        ctk.CTkButton(jr, text="Launch Squad", width=150, fg_color="#3d4652",
+        jr.pack(anchor="w", padx=20, pady=(6, 0))
+        ctk.CTkButton(jr, text="Launch Squad", width=150, fg_color=NEUTRAL_BTN,
+                      hover_color=NEUTRAL_HOVER,
                       command=lambda: webbrowser.open(core.LAUNCH_URL)).grid(row=0, column=0, padx=5)
-        ctk.CTkButton(jr, text="Connect", width=150, fg_color=ACCENT,
+        ctk.CTkButton(jr, text="Connect", width=150, fg_color=ACCENT, hover_color=ACCENT_HOVER,
                       command=self.connect_server).grid(row=0, column=1, padx=5)
         ctk.CTkLabel(p, text="With Squad closed, Connect launches & joins. If it's already open "
                              "or lands on the menu, paste the copied address into the in-game "
                              "Custom Browser.",
                      text_color=MUTED, font=ctk.CTkFont(size=10), wraplength=540,
-                     justify="left").pack(anchor="w", padx=18, pady=(4, 0))
+                     justify="left").pack(anchor="w", padx=20, pady=(6, 0))
         divider()
 
         # --- Step 3: while seeding (Squad open) ---
-        section("\u2462  While seeding \u2014 Squad open")
+        section("\u2462", "While seeding  \u00b7  Squad open")
         ctk.CTkLabel(p, text="Live changes \u2014 use these after Squad is open.",
-                     text_color=MUTED, font=ctk.CTkFont(size=10)).pack(anchor="w", padx=18,
+                     text_color=MUTED, font=ctk.CTkFont(size=10)).pack(anchor="w", padx=20,
                                                                        pady=(4, 0))
         lr = ctk.CTkFrame(p, fg_color="transparent")
-        lr.pack(anchor="w", padx=18, pady=(4, 0))
-        self.btn_mute = ctk.CTkButton(lr, text="Mute Audio", width=150, fg_color="#3d4652",
-                                      command=self.mute_squad)
+        lr.pack(anchor="w", padx=20, pady=(6, 0))
+        self.btn_mute = ctk.CTkButton(lr, text="Mute Audio", width=150, fg_color=NEUTRAL_BTN,
+                                      hover_color=NEUTRAL_HOVER, command=self.mute_squad)
         self.btn_mute.grid(row=0, column=0, padx=5, pady=2)
-        ctk.CTkButton(lr, text="Minimize Squad", width=150, fg_color="#3d4652",
+        ctk.CTkButton(lr, text="Minimize Squad", width=150, fg_color=NEUTRAL_BTN,
+                      hover_color=NEUTRAL_HOVER,
                       command=self.minimize_squad).grid(row=0, column=1, padx=5, pady=2)
-        ctk.CTkButton(lr, text="\u21ba Undo All (unmute + restore)", fg_color="#3d4652",
+        ctk.CTkButton(lr, text="\u21ba  Undo All (unmute + restore)", fg_color=NEUTRAL_BTN,
+                      hover_color=NEUTRAL_HOVER,
                       command=self.undo_all).grid(row=1, column=0, columnspan=2, padx=5,
                                                   pady=2, sticky="ew")
-        divider()
 
-        # --- When seeding is done (boxed, prominent) with the Target inside ---
-        act_card = ctk.CTkFrame(p, fg_color="#243447", border_color=WARN,
-                                border_width=2, corner_radius=10)
-        act_card.pack(fill="x", padx=14, pady=(12, 8))
-        ctk.CTkLabel(act_card, text="\u2714  WHEN SEEDING IS DONE", text_color=WARN,
-                     font=ctk.CTkFont(size=16, weight="bold")).pack(pady=(12, 4))
-        trig = ctk.CTkFrame(act_card, fg_color="transparent")
-        trig.pack(pady=(0, 6))
-        ctk.CTkLabel(trig, text="Fires when the server reaches",
+        # --- When seeding is done (elevated surface; border follows the action) ---
+        self.act_card = ctk.CTkFrame(p, fg_color=SURFACE, corner_radius=12,
+                                     border_width=2, border_color=ACCENT)
+        self.act_card.pack(fill="x", padx=12, pady=(18, 10))
+        ctk.CTkLabel(self.act_card, text="\u2714  WHEN SEEDING IS DONE", text_color=TEXT,
+                     font=ctk.CTkFont(size=15, weight="bold")).pack(pady=(14, 6))
+        trig = ctk.CTkFrame(self.act_card, fg_color="transparent")
+        trig.pack(pady=(0, 8))
+        ctk.CTkLabel(trig, text="Fires when the server reaches", text_color=MUTED,
                      font=ctk.CTkFont(size=12)).grid(row=0, column=0, padx=(0, 6))
-        self.spin_target = ctk.CTkEntry(trig, width=52, justify="center")
+        self.spin_target = ctk.CTkEntry(trig, width=54, justify="center",
+                                        fg_color=SURFACE_2, border_color=BORDER)
         self.spin_target.insert(0, str(self.cfg["target_players"]))
         self.spin_target.grid(row=0, column=1)
         self.spin_target.bind("<FocusOut>", lambda e: self.on_settings_change())
         self.spin_target.bind("<Return>", lambda e: self.on_settings_change())
-        ctk.CTkLabel(trig, text="players, then:",
+        ctk.CTkLabel(trig, text="players, then:", text_color=MUTED,
                      font=ctk.CTkFont(size=12)).grid(row=0, column=2, padx=(6, 0))
         self.action_seg = ctk.CTkSegmentedButton(
-            act_card, values=["Do Nothing", "Kill Process", "Shutdown PC"],
+            self.act_card, values=["Do Nothing", "Kill Process", "Shutdown PC"],
             variable=self.action_var, command=self.set_action,
+            selected_color=ACCENT, selected_hover_color=ACCENT_HOVER,
             font=ctk.CTkFont(size=13, weight="bold"), height=40)
-        self.action_seg.pack(padx=14, fill="x")
-        self.lbl_action_desc = ctk.CTkLabel(act_card, text="", text_color=ACCENT,
+        self.action_seg.pack(padx=16, fill="x")
+        self.lbl_action_desc = ctk.CTkLabel(self.act_card, text="", text_color=ACCENT,
                                             font=ctk.CTkFont(size=12, weight="bold"))
-        self.lbl_action_desc.pack(pady=(8, 12))
+        self.lbl_action_desc.pack(pady=(10, 14))
         self._update_action_desc(self.action_var.get())
 
         self.btn_abort = ctk.CTkButton(p, text="ABORT SHUTDOWN", fg_color=DANGER,
@@ -875,7 +899,7 @@ class SeedMonitorApp(ctk.CTk):
 
     _ACTION_DESC = {
         "Do Nothing": ("Nothing closes — settings restore so you can keep playing.", ACCENT),
-        "Kill Process": ("Squad is closed automatically. Thanks for seeding!", WARN),
+        "Kill Process": ("Squad is closed automatically. Thanks for seeding!", ORANGE),
         "Shutdown PC": ("Your PC shuts down (with a confirm + abort window).", DANGER),
     }
 
@@ -883,6 +907,9 @@ class SeedMonitorApp(ctk.CTk):
         text, color = self._ACTION_DESC.get(action, ("", ACCENT))
         if hasattr(self, "lbl_action_desc"):
             self.lbl_action_desc.configure(text=text, text_color=color)
+        # the action card's border echoes the consequence (green/orange/red)
+        if hasattr(self, "act_card"):
+            self.act_card.configure(border_color=color)
 
     def set_action(self, action):
         self.cfg["action"] = action
