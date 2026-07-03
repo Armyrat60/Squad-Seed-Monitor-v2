@@ -539,6 +539,44 @@ def create_desktop_shortcut(logger=None):
         return False, f"Shortcut failed: {e}"
 
 
+def minimize_game(logger=None):
+    """Minimize the Squad game window so it (nearly) stops rendering — the
+    biggest power/GPU saver while AFK seeding. Windows-only, best-effort.
+    Returns True if a Squad window was minimized."""
+    try:
+        import ctypes
+        from ctypes import wintypes
+        user32 = ctypes.windll.user32
+        SW_MINIMIZE = 6
+
+        # Fast path: a top-level window titled exactly "Squad".
+        hwnd = user32.FindWindowW(None, "Squad")
+        if hwnd:
+            user32.ShowWindow(hwnd, SW_MINIMIZE)
+            return True
+
+        # Fallback: enumerate visible top-level UnrealWindow-class windows.
+        found = []
+        buf = ctypes.create_unicode_buffer(256)
+
+        @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+        def _cb(hwnd, lparam):
+            if user32.IsWindowVisible(hwnd):
+                user32.GetClassNameW(hwnd, buf, 256)
+                if buf.value == "UnrealWindow":
+                    found.append(hwnd)
+            return True
+
+        user32.EnumWindows(_cb, 0)
+        for h in found:
+            user32.ShowWindow(h, SW_MINIMIZE)
+        return bool(found)
+    except Exception as e:
+        if logger:
+            logger.warning("minimize_game failed: %s", e)
+        return False
+
+
 def game_is_running():
     """True if SquadGame process is currently running (best-effort)."""
     try:
@@ -576,15 +614,35 @@ _FPS_KEYS = ("FrameRateLimit",)
 _GFX_SECTION = "[/Script/Squad.SQGameUserSettings]"
 _GFX_SECTION_FALLBACK = "[/Script/Engine.GameUserSettings]"
 
+# Quality keys pushed to their lowest while seeding (fully reverted on Restore,
+# which copies the whole backup ini back). Rewritten in place only if present.
+# For a user already on Low this is a no-op; for high-graphics players it's the
+# real GPU saving. sg.ResolutionQuality is render scale (50 = half the pixels).
+_QUALITY_LOW = {
+    "GraphicsQuality": "0",
+    "sg.ResolutionQuality": "50",
+    "sg.ViewDistanceQuality": "0",
+    "sg.AntiAliasingQuality": "0",
+    "sg.ShadowQuality": "0",
+    "sg.GlobalIlluminationQuality": "0",
+    "sg.ReflectionQuality": "0",
+    "sg.PostProcessQuality": "0",
+    "sg.TextureQuality": "0",
+    "sg.EffectsQuality": "0",
+    "sg.FoliageQuality": "0",
+    "sg.ShadingQuality": "0",
+    "sg.LandscapeQuality": "0",
+}
 
-def write_seed_gfx(ini_path, res_x, res_y, fps):
-    """Rewrite resolution + frame limit in the ini. Returns a dict describing
-    what changed: {before:{...}, after:{...}, wrote:bool, keys_found:[...],
-    keys_added:[...]}.
+
+def write_seed_gfx(ini_path, res_x, res_y, fps, low_quality=True):
+    """Rewrite resolution + frame limit (and optionally quality) in the ini.
+    Returns a dict: {before, after, wrote, keys_found, keys_added}.
 
     Existing keys are rewritten in place. If FrameRateLimit is absent (common —
-    Squad omits it until you touch the FPS setting), it's added to the
-    GameUserSettings section so the seeding FPS cap actually takes effect."""
+    Squad omits it until you touch the FPS setting), it's added to Squad's
+    settings section so the seeding FPS cap actually takes effect. When
+    low_quality is set, scalability/quality keys are also dropped to minimum."""
     result = {"before": {}, "after": {}, "wrote": False,
               "keys_found": [], "keys_added": []}
     with open(ini_path, "r", encoding="utf-8", errors="ignore") as f:
@@ -606,6 +664,9 @@ def write_seed_gfx(ini_path, res_x, res_y, fps):
         elif k in _FPS_KEYS:
             result["before"][k] = line.split("=", 1)[1].strip()
             newline = f"{k}={float(fps):.6f}\n"; result["keys_found"].append(k)
+        elif low_quality and k in _QUALITY_LOW:
+            result["before"][k] = line.split("=", 1)[1].strip()
+            newline = f"{k}={_QUALITY_LOW[k]}\n"; result["keys_found"].append(k)
         if newline != line:
             result["after"][k] = newline.split("=", 1)[1].strip()
         out.append(newline)

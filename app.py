@@ -237,11 +237,14 @@ class SeedMonitorApp(ctk.CTk):
 
         ar2 = ctk.CTkFrame(opt, fg_color="transparent")
         ar2.pack(padx=12, pady=(0, 10))
-        self.btn_mute = ctk.CTkButton(ar2, text="Mute Audio", width=110, fg_color="#3d4652",
+        self.btn_mute = ctk.CTkButton(ar2, text="Mute Audio", width=132, fg_color="#3d4652",
                                       command=self.mute_squad)
-        self.btn_mute.grid(row=0, column=0, padx=4)
+        self.btn_mute.grid(row=0, column=0, padx=4, pady=2)
+        ctk.CTkButton(ar2, text="Minimize Squad", width=132, fg_color="#3d4652",
+                      command=self.minimize_squad).grid(row=0, column=1, padx=4, pady=2)
         ctk.CTkButton(ar2, text="↺ Undo All (unmute + restore)", fg_color="#3d4652",
-                      command=self.undo_all).grid(row=0, column=1, padx=4)
+                      command=self.undo_all).grid(row=1, column=0, columnspan=2, padx=4,
+                                                  pady=2, sticky="ew")
 
         # Quick settings (target / confirms / seed gate) - full panel in Settings tab later
         sr = ctk.CTkFrame(p, fg_color="transparent")
@@ -923,6 +926,17 @@ class SeedMonitorApp(ctk.CTk):
         except Exception as e:
             self.log.warning("audio error: %s", e)
 
+    def minimize_squad(self):
+        """Minimize the Squad window so it nearly stops rendering while seeding."""
+        if not core.game_is_running():
+            self._set_status("Squad isn't running — launch it first, then minimize.", WARN)
+            return
+        if core.minimize_game(self.log):
+            self._set_status("Squad minimized — barely using your GPU now.", ACCENT)
+            self.log.info("Squad window minimized")
+        else:
+            self._set_status("Couldn't find the Squad window to minimize.", WARN)
+
     def apply_seed_settings(self):
         import shutil
         from tkinter import filedialog
@@ -993,7 +1007,7 @@ class SeedMonitorApp(ctk.CTk):
         """Popup explaining what Low-Resource Seeding Mode does and the workflow."""
         win = ctk.CTkToplevel(self)
         win.title("Low-Resource Seeding Mode")
-        win.geometry("470x360")
+        win.geometry("480x420")
         win.transient(self)
         win.grab_set()
         try:
@@ -1006,17 +1020,18 @@ class SeedMonitorApp(ctk.CTk):
         ctk.CTkLabel(
             win, justify="left", wraplength=430, font=ctk.CTkFont(size=12), text_color="#d8d8d8",
             text=("Seeding means sitting in a near-empty server to help it fill. This\n"
-                  "mode drops Squad to minimal resolution + FPS so it barely uses your\n"
-                  "GPU/CPU while you wait.\n\n"
+                  "mode drops Squad to minimal resolution, FPS, and quality (shadows,\n"
+                  "effects, textures, render scale…) so it barely uses your GPU/CPU.\n\n"
                   "Squad reads these settings when it launches and rewrites the file\n"
                   "when it closes, so the order matters:\n\n"
                   "  1.  Close Squad\n"
                   "  2.  Pick a low Resolution + FPS limit, click Apply\n"
-                  "  3.  Launch Squad — now seeding at low graphics\n\n"
+                  "  3.  Launch Squad — now seeding at low graphics\n"
+                  "  4.  Click 'Minimize Squad' — a minimized window barely renders\n\n"
                   "When seeding is done, to play normally:\n"
-                  "  4.  Close Squad → click Restore → relaunch\n\n"
-                  "Mute is the exception: mute AFTER Squad is open (it's a live change).\n"
-                  "Undo All = unmute + restore graphics in one click.")
+                  "  5.  Close Squad → click Restore → relaunch\n\n"
+                  "The FPS cap + minimizing are the two biggest savers. Mute is a live\n"
+                  "change: mute AFTER Squad is open. Undo All = unmute + restore.")
         ).pack(pady=(0, 10), padx=18, anchor="w")
         ctk.CTkButton(win, text="Got it", width=120, command=win.destroy).pack(pady=(0, 12))
 
