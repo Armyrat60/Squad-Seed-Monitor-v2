@@ -43,12 +43,14 @@ closes Squad or shuts down your PC) so you don't have to babysit it.
 1. **Search your server** (name or BM ID) and select it.
 2. **Set your target** — the population at which seeding is "done" (default 95).
    Leave **Only fire on seed layer** on; it's the safest signal.
-3. Click **Apply** (low res/FPS) before launching, then click **Connect** — it
-   launches Squad and asks it to join the server, and copies the server address
-   to your clipboard. If Squad lands on the main menu instead of joining, paste
-   that address into the in-game server browser's IP search. (Steam's own
-   direct-connect has been broken for Squad since 2023 — a Valve bug — so the
-   in-game browser is the reliable path; **Launch Squad** just opens the game.)
+3. Click **Apply** (low res/FPS) with Squad **closed**, then click **Connect** —
+   with Squad closed it launches the game *and* joins the server (wait through
+   the loading screens; don't click during them). The server address is also
+   copied to your clipboard. If Squad is already open, or it lands on the main
+   menu, paste that address into the in-game **Custom Browser**, or use the
+   **SquadBrowser** button ([squadbrowser.app](https://squadbrowser.app/)).
+   (Steam's own direct-connect has been broken for Squad since 2023 — a Valve
+   bug — so the in-game/web browser is the reliable path.)
 4. Pick what happens when seeded: **Do Nothing** / **Kill Process** / **Shutdown PC**.
 5. Walk away. When the server seeds or goes live, your game is restored
    automatically (and Squad closes / PC shuts down if you chose that).

@@ -195,9 +195,12 @@ class SeedMonitorApp(ctk.CTk):
                       command=lambda: webbrowser.open(core.LAUNCH_URL)).grid(row=0, column=0, padx=6)
         ctk.CTkButton(jr, text="Connect", width=130, fg_color=ACCENT,
                       command=self.connect_server).grid(row=0, column=1, padx=6)
-        ctk.CTkLabel(p, text="Connect copies the address & asks Squad to join. If it opens to "
-                             "the menu (a known Steam bug), paste it into the in-game Custom Browser.",
-                     text_color=MUTED, font=ctk.CTkFont(size=10), wraplength=560,
+        ctk.CTkButton(jr, text="SquadBrowser ↗", width=130, fg_color="#3d4652",
+                      command=self.open_squadbrowser).grid(row=0, column=2, padx=6)
+        ctk.CTkLabel(p, text="Best with Squad CLOSED: Connect launches & joins (wait through "
+                             "loading). If Squad is already open, paste the copied address into "
+                             "the in-game Custom Browser or use SquadBrowser.",
+                     text_color=MUTED, font=ctk.CTkFont(size=10), wraplength=580,
                      justify="center").pack(pady=(2, 0))
 
         # Seeding tools
@@ -787,27 +790,46 @@ class SeedMonitorApp(ctk.CTk):
             self._set_status("No server selected - pick one on the Server tab", WARN)
             webbrowser.open(core.LAUNCH_URL)
             return
-        url = core.steam_connect_url(self.cfg)
-        self.log.info("connect requested -> %s", url)
-        # Copy the address as a fallback: Steam's connect path is buggy for Squad,
-        # so if it lands on the menu the user can paste this into the in-game
-        # server browser's IP search.
+        # Always copy the address so the in-game browser / SquadBrowser fallback
+        # is one paste away.
         try:
             self.clipboard_clear()
             self.clipboard_append(connect)
         except Exception:
             pass
-        webbrowser.open(url)
-        self._set_status(f"Launching Squad → {connect} (copied — paste in the "
-                         f"in-game browser if it doesn't auto-join)", ACCENT)
+        # The launch+connect link only joins when Squad is CLOSED (it launches
+        # WITH the connect arg). If Squad is already open, that link just focuses
+        # the game without joining — so there, guide the user to the browser.
+        if core.game_is_running():
+            self.log.info("connect: Squad already running -> guide to browser (%s)", connect)
+            self._set_status(f"Squad is already open — paste {connect} into the in-game "
+                             f"Custom Browser (copied), or use SquadBrowser.app.", WARN)
+        else:
+            url = core.steam_connect_url(self.cfg)
+            self.log.info("connect requested -> %s", url)
+            webbrowser.open(url)
+            self._set_status(f"Launching Squad → {connect} (copied). Wait for the main "
+                             f"menu; if it doesn't auto-join, use the in-game browser.", ACCENT)
         if not self.cfg.get("connect_help_shown"):
             self._show_connect_help(connect)
+
+    def open_squadbrowser(self):
+        """Open SquadBrowser.app and copy the address to paste/search there."""
+        connect = self.cfg.get("connect")
+        if connect:
+            try:
+                self.clipboard_clear()
+                self.clipboard_append(connect)
+            except Exception:
+                pass
+            self._set_status(f"Opened SquadBrowser.app — search {connect} (copied).", ACCENT)
+        webbrowser.open("https://squadbrowser.app/")
 
     def _show_connect_help(self, connect):
         """One-time warning: direct connect may fail (Steam bug); how to fall back."""
         win = ctk.CTkToplevel(self)
         win.title("Joining the server")
-        win.geometry("440x330")
+        win.geometry("460x400")
         win.transient(self)
         win.grab_set()
         try:
@@ -815,21 +837,24 @@ class SeedMonitorApp(ctk.CTk):
                 _resource_path(os.path.join("assets", "icon.ico"))))
         except Exception:
             pass
-        ctk.CTkLabel(win, text="⚠  If Squad opens to the menu instead of joining",
-                     font=ctk.CTkFont(size=15, weight="bold"), text_color=WARN,
-                     wraplength=400).pack(pady=(16, 6), padx=16)
+        ctk.CTkLabel(win, text="How to join the server", font=ctk.CTkFont(size=16, weight="bold"),
+                     text_color=WARN, wraplength=420).pack(pady=(16, 4), padx=16)
         ctk.CTkLabel(
-            win, justify="left", wraplength=400, font=ctk.CTkFont(size=12),
-            text=("Steam's direct-connect is buggy for Squad, so auto-join may not\n"
-                  "work. The server address is already copied to your clipboard:\n\n"
+            win, justify="left", wraplength=420, font=ctk.CTkFont(size=12), text_color="#d8d8d8",
+            text=("Steam's direct-connect is buggy for Squad, so auto-join isn't\n"
+                  "guaranteed. The address is copied to your clipboard:\n\n"
                   f"     {connect}\n\n"
-                  "To join manually:\n"
-                  "  1.  Squad main menu → Custom Browser\n"
-                  "  2.  Paste (Ctrl+V) into the search / IP box\n"
+                  "Best case — with Squad CLOSED, click Connect: it launches and\n"
+                  "joins. Wait through the loading screens; don't click during them.\n\n"
+                  "If Squad is already open, or it lands on the main menu:\n"
+                  "  1.  Main menu → Custom Browser\n"
+                  "  2.  Paste (Ctrl+V) the address into the search / IP box\n"
                   "  3.  Select the server and Join\n\n"
-                  "Web browsers like squadbrowser.app also work.")
+                  "Or use SquadBrowser.app (button below) to find and join it.")
         ).pack(pady=(0, 8), padx=16, anchor="w")
 
+        ctk.CTkButton(win, text="Open SquadBrowser.app ↗", width=200, fg_color="#3d4652",
+                      command=self.open_squadbrowser).pack(pady=(0, 6))
         dont = ctk.BooleanVar(value=True)
         ctk.CTkCheckBox(win, text="Don't show this again", variable=dont).pack(pady=(0, 8))
 
