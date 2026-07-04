@@ -103,7 +103,13 @@ class SeedMonitorApp(ctk.CTk):
         self.res_var = ctk.StringVar(value="1024x768")
         self.fps_var = ctk.StringVar(value="5")
 
+        # Responsive scaling: fonts + widgets zoom with the window (like a webpage).
+        self._cur_scale = 1.0
+        self._resize_after = None
+        self._base_width = 600.0
+
         self._build_ui()
+        self.bind("<Configure>", self._on_root_resize)
         self._setup_tray()
         self.log.info("========== v%s started | server=%s target=%s conf=%s seed_gate=%s ==========",
                       core.__version__, self.cfg["server_id"] or "(none)",
@@ -127,6 +133,32 @@ class SeedMonitorApp(ctk.CTk):
         # the favorites dashboard refreshing.
         self.after(180, self._fit_to_content)
         self.after(1500, self._favorites_autorefresh)
+
+    def _on_root_resize(self, event):
+        """Debounced: rescale the whole UI (fonts + widgets) to the window width,
+        so text and buttons grow/shrink like a responsive webpage."""
+        if event.widget is not self:
+            return
+        if self._resize_after is not None:
+            try:
+                self.after_cancel(self._resize_after)
+            except Exception:
+                pass
+        self._resize_after = self.after(90, self._apply_widget_scale)
+
+    def _apply_widget_scale(self):
+        self._resize_after = None
+        try:
+            w = self.winfo_width()
+            if w < 120:
+                return
+            scale = max(0.85, min(w / self._base_width, 1.6))
+            if abs(scale - self._cur_scale) >= 0.03:
+                self._cur_scale = scale
+                ctk.set_widget_scaling(scale)
+                self._draw_graph()
+        except Exception:
+            pass
 
     def _fit_to_content(self):
         """Size the window height to exactly fit the Monitor tab's content (no
@@ -254,12 +286,14 @@ class SeedMonitorApp(ctk.CTk):
         self.graph.pack(fill="both", expand=True, padx=16, pady=(6, 10))
         self.graph.bind("<Configure>", lambda e: self._draw_graph())
         jr = ctk.CTkFrame(server, fg_color="transparent")
-        jr.pack(pady=(0, 4))
-        ctk.CTkButton(jr, text="Launch Squad", width=150, fg_color=NEUTRAL_BTN,
+        jr.pack(fill="x", padx=16, pady=(0, 4))
+        jr.columnconfigure((0, 1), weight=1, uniform="join")
+        ctk.CTkButton(jr, text="Launch Squad", fg_color=NEUTRAL_BTN,
                       hover_color=NEUTRAL_HOVER,
-                      command=lambda: webbrowser.open(core.LAUNCH_URL)).grid(row=0, column=0, padx=5)
-        ctk.CTkButton(jr, text="Connect", width=150, fg_color=ACCENT, hover_color=ACCENT_HOVER,
-                      command=self.connect_server).grid(row=0, column=1, padx=5)
+                      command=lambda: webbrowser.open(core.LAUNCH_URL)
+                      ).grid(row=0, column=0, padx=(0, 4), sticky="ew")
+        ctk.CTkButton(jr, text="Connect", fg_color=ACCENT, hover_color=ACCENT_HOVER,
+                      command=self.connect_server).grid(row=0, column=1, padx=(4, 0), sticky="ew")
         ctk.CTkLabel(server, text="Connect launches & joins with Squad closed. If it opens to the "
                                   "menu, the address is copied \u2014 paste it into the in-game "
                                   "Custom Browser.",
@@ -320,16 +354,18 @@ class SeedMonitorApp(ctk.CTk):
                                          command=self.manual_restore)
         self.btn_restore.grid(row=1, column=3, padx=4)
         lr = ctk.CTkFrame(gfx, fg_color="transparent")
-        lr.pack(pady=(4, 12))
-        self.btn_mute = ctk.CTkButton(lr, text="Mute Audio", width=150, fg_color=NEUTRAL_BTN,
+        lr.pack(fill="x", padx=14, pady=(4, 12))
+        lr.columnconfigure((0, 1), weight=1, uniform="tools")
+        self.btn_mute = ctk.CTkButton(lr, text="Mute Audio", fg_color=NEUTRAL_BTN,
                                       hover_color=NEUTRAL_HOVER, command=self.mute_squad)
-        self.btn_mute.grid(row=0, column=0, padx=5, pady=2)
-        ctk.CTkButton(lr, text="Minimize Squad", width=150, fg_color=NEUTRAL_BTN,
+        self.btn_mute.grid(row=0, column=0, padx=(0, 4), pady=2, sticky="ew")
+        ctk.CTkButton(lr, text="Minimize Squad", fg_color=NEUTRAL_BTN,
                       hover_color=NEUTRAL_HOVER,
-                      command=self.minimize_squad).grid(row=0, column=1, padx=5, pady=2)
+                      command=self.minimize_squad).grid(row=0, column=1, padx=(4, 0), pady=2,
+                                                        sticky="ew")
         ctk.CTkButton(lr, text="\u21ba  Undo All (unmute + restore)", fg_color=NEUTRAL_BTN,
                       hover_color=NEUTRAL_HOVER,
-                      command=self.undo_all).grid(row=1, column=0, columnspan=2, padx=5,
+                      command=self.undo_all).grid(row=1, column=0, columnspan=2, padx=0,
                                                   pady=2, sticky="ew")
 
         self.btn_abort = ctk.CTkButton(p, text="ABORT SHUTDOWN", fg_color=DANGER,
