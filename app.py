@@ -70,8 +70,8 @@ class SeedMonitorApp(ctk.CTk):
         self.log = core.setup_logger()
 
         self.title(f"{core.APP_TITLE}  v{core.__version__}")
-        self.geometry("600x760")     # snug fit for the Monitor tab, minimal dead space
-        self.minsize(540, 520)
+        self.geometry("600x760")     # opens snug; the graph absorbs any extra height
+        self.minsize(540, 600)       # graph shrinks with the window down to this floor
         self.configure(fg_color=WINDOW_BG)
         try:
             ico = _resource_path(os.path.join("assets", "icon.ico"))
@@ -168,14 +168,17 @@ class SeedMonitorApp(ctk.CTk):
         p = ctk.CTkFrame(self.tab_monitor, fg_color="transparent")
         p.pack(fill="both", expand=True)
 
-        def card(accent=False, last=False):
+        def card(accent=False, last=False, grow=False):
             c = ctk.CTkFrame(p, fg_color=SURFACE, corner_radius=12, border_width=2 if accent else 1,
                              border_color=ACCENT if accent else BORDER)
-            c.pack(fill="x", padx=12, pady=(10, 10 if last else 0))
+            # grow=True lets this card absorb spare vertical space so the window
+            # never shows dead padding and resizes dynamically.
+            c.pack(fill="both" if grow else "x", expand=grow,
+                   padx=12, pady=(10, 10 if last else 0))
             return c
 
         # ================= Server card: name + stats + target + graph + join =========
-        server = card()
+        server = card(grow=True)
         namerow = ctk.CTkFrame(server, fg_color="transparent")
         namerow.pack(fill="x", padx=14, pady=(10, 0))
         self.btn_fav = ctk.CTkButton(namerow, text="☆", width=32, height=28,
@@ -227,7 +230,7 @@ class SeedMonitorApp(ctk.CTk):
                                       font=ctk.CTkFont(size=11), anchor="w")
         self.lbl_timer.pack(anchor="w")
         self.graph = ctk.CTkCanvas(server, height=76, highlightthickness=0, bg=SURFACE_2)
-        self.graph.pack(fill="x", padx=16, pady=(6, 10))
+        self.graph.pack(fill="both", expand=True, padx=16, pady=(6, 10))
         self.graph.bind("<Configure>", lambda e: self._draw_graph())
         jr = ctk.CTkFrame(server, fg_color="transparent")
         jr.pack(pady=(0, 4))
