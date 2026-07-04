@@ -103,13 +103,7 @@ class SeedMonitorApp(ctk.CTk):
         self.res_var = ctk.StringVar(value="1024x768")
         self.fps_var = ctk.StringVar(value="5")
 
-        # Responsive scaling: fonts + widgets zoom with the window (like a webpage).
-        self._cur_scale = 1.0
-        self._resize_after = None
-        self._base_width = 600.0
-
         self._build_ui()
-        self.bind("<Configure>", self._on_root_resize)
         self._setup_tray()
         self.log.info("========== v%s started | server=%s target=%s conf=%s seed_gate=%s ==========",
                       core.__version__, self.cfg["server_id"] or "(none)",
@@ -133,32 +127,6 @@ class SeedMonitorApp(ctk.CTk):
         # the favorites dashboard refreshing.
         self.after(180, self._fit_to_content)
         self.after(1500, self._favorites_autorefresh)
-
-    def _on_root_resize(self, event):
-        """Debounced: rescale the whole UI (fonts + widgets) to the window width,
-        so text and buttons grow/shrink like a responsive webpage."""
-        if event.widget is not self:
-            return
-        if self._resize_after is not None:
-            try:
-                self.after_cancel(self._resize_after)
-            except Exception:
-                pass
-        self._resize_after = self.after(90, self._apply_widget_scale)
-
-    def _apply_widget_scale(self):
-        self._resize_after = None
-        try:
-            w = self.winfo_width()
-            if w < 120:
-                return
-            scale = max(0.85, min(w / self._base_width, 1.6))
-            if abs(scale - self._cur_scale) >= 0.03:
-                self._cur_scale = scale
-                ctk.set_widget_scaling(scale)
-                self._draw_graph()
-        except Exception:
-            pass
 
     def _fit_to_content(self):
         """Size the window height to exactly fit the Monitor tab's content (no
