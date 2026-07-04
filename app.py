@@ -70,8 +70,8 @@ class SeedMonitorApp(ctk.CTk):
         self.log = core.setup_logger()
 
         self.title(f"{core.APP_TITLE}  v{core.__version__}")
-        self.geometry("600x744")     # snug fit for the Monitor tab, minimal dead space
-        self.minsize(540, 520)       # can shrink to a compact box (content scrolls)
+        self.geometry("600x760")     # snug fit for the Monitor tab, minimal dead space
+        self.minsize(540, 520)
         self.configure(fg_color=WINDOW_BG)
         try:
             ico = _resource_path(os.path.join("assets", "icon.ico"))
@@ -139,20 +139,6 @@ class SeedMonitorApp(ctk.CTk):
         self.banner_btn.pack(side="right", padx=8, pady=6)
         # not packed yet -> shown only when update found
 
-        # Compact current-server header (always visible) with a favorite star
-        hdr = ctk.CTkFrame(self, fg_color="transparent")
-        hdr.pack(pady=(10, 4))
-        self.btn_fav = ctk.CTkButton(hdr, text="☆", width=36,
-                                     fg_color="#3d4652", hover_color="#4a5560",
-                                     font=ctk.CTkFont(size=18),
-                                     command=self.toggle_favorite_current)
-        self.btn_fav.pack(side="left", padx=(0, 8))
-        self.lbl_server = ctk.CTkLabel(hdr, text=self._server_text(),
-                                       text_color=MUTED, font=ctk.CTkFont(size=12),
-                                       wraplength=520, justify="left")
-        self.lbl_server.pack(side="left")
-        self._update_fav_star()
-
         # Tabview with larger tab labels. Tab bg = window bg so SURFACE cards lift.
         self.tabs = ctk.CTkTabview(self, height=560, fg_color=WINDOW_BG,
                                    segmented_button_selected_color=ACCENT,
@@ -178,7 +164,8 @@ class SeedMonitorApp(ctk.CTk):
                      font=ctk.CTkFont(size=13)).pack(pady=40)
 
     def _build_monitor_tab(self):
-        p = ctk.CTkScrollableFrame(self.tab_monitor, fg_color="transparent")
+        # Plain frame (no scrollbar) — the content is sized to fit the window.
+        p = ctk.CTkFrame(self.tab_monitor, fg_color="transparent")
         p.pack(fill="both", expand=True)
 
         def card(accent=False, last=False):
@@ -187,10 +174,22 @@ class SeedMonitorApp(ctk.CTk):
             c.pack(fill="x", padx=12, pady=(10, 10 if last else 0))
             return c
 
-        # ================= Server card: stats + target + graph + join =================
+        # ================= Server card: name + stats + target + graph + join =========
         server = card()
+        namerow = ctk.CTkFrame(server, fg_color="transparent")
+        namerow.pack(fill="x", padx=14, pady=(10, 0))
+        self.btn_fav = ctk.CTkButton(namerow, text="☆", width=32, height=28,
+                                     fg_color=NEUTRAL_BTN, hover_color=NEUTRAL_HOVER,
+                                     font=ctk.CTkFont(size=16),
+                                     command=self.toggle_favorite_current)
+        self.btn_fav.pack(side="left", padx=(0, 8))
+        self.lbl_server = ctk.CTkLabel(namerow, text=self._server_text(), text_color=TEXT,
+                                       font=ctk.CTkFont(size=12, weight="bold"),
+                                       wraplength=470, justify="left", anchor="w")
+        self.lbl_server.pack(side="left", fill="x", expand=True)
+        self._update_fav_star()
         top = ctk.CTkFrame(server, fg_color="transparent")
-        top.pack(fill="x", padx=16, pady=(12, 4))
+        top.pack(fill="x", padx=16, pady=(8, 4))
         colL = ctk.CTkFrame(top, fg_color="transparent")
         colL.pack(side="left")
         self.lbl_players = ctk.CTkLabel(colL, text="--", text_color=TEXT,
@@ -267,10 +266,13 @@ class SeedMonitorApp(ctk.CTk):
         ctk.CTkButton(gh, text="\u24d8 How it works", width=104, height=26,
                       fg_color=NEUTRAL_BTN, hover_color=NEUTRAL_HOVER,
                       command=self._show_seed_mode_help).pack(side="right")
-        ctk.CTkLabel(gfx, text="\u26a0 Squad LAUNCHES with these \u2014 set them with Squad "
-                               "closed. Defaults are tuned for seeding.",
-                     text_color=MUTED, font=ctk.CTkFont(size=10), wraplength=470,
-                     justify="center").pack(pady=(4, 8), padx=14)
+        ctk.CTkLabel(gfx, text="\u26a0  Squad LAUNCHES with these settings \u2014 set them with Squad "
+                               "CLOSED.",
+                     text_color=WARN, font=ctk.CTkFont(size=12, weight="bold"),
+                     wraplength=480, justify="center").pack(pady=(6, 0), padx=14)
+        ctk.CTkLabel(gfx, text="Defaults are already tuned for seeding.",
+                     text_color=MUTED, font=ctk.CTkFont(size=10),
+                     justify="center").pack(pady=(0, 8), padx=14)
         tr = ctk.CTkFrame(gfx, fg_color="transparent")
         tr.pack(pady=(0, 6))
         ctk.CTkLabel(tr, text="Resolution", text_color=MUTED,
@@ -1239,14 +1241,14 @@ class SeedMonitorApp(ctk.CTk):
             def y_for(v):
                 return base - (v / top) * (base - padtop)
 
-            # target line + label (top-left, out of the way of the value)
             ty = y_for(target)
-            c.create_line(padx, ty, w - padx, ty, fill="#c9a20a", dash=(4, 3))
-            c.create_text(padx + 2, max(8, ty - 8), anchor="w", fill="#f1c40f",
-                          text=f"target {target}", font=("Segoe UI", 8))
 
             if len(vals) < 2:
-                c.create_text(w // 2, h // 2 + 2, fill=MUTED,
+                # still draw the target line so the threshold is always visible
+                c.create_line(padx, ty, w - padx, ty, fill="#f1c40f", dash=(4, 3))
+                c.create_text(padx + 2, max(8, ty - 8), anchor="w", fill="#f1c40f",
+                              text=f"target {target}", font=("Segoe UI", 8, "bold"))
+                c.create_text(w // 2, h // 2 + 6, fill=MUTED,
                               text="collecting data…", font=("Segoe UI", 9))
                 return
 
@@ -1255,10 +1257,14 @@ class SeedMonitorApp(ctk.CTk):
             line = []
             for i, v in enumerate(vals):
                 line += [padx + i * step, y_for(v)]
-            # filled area under the line for readability
+            # filled area under the player line for readability
             area = [padx, base] + line + [w - padx, base]
             c.create_polygon(*area, fill="#1f3a30", outline="")
             c.create_line(*line, fill=ACCENT, width=2, smooth=True)
+            # target threshold line + label — drawn ON TOP so it's always visible
+            c.create_line(padx, ty, w - padx, ty, fill="#f1c40f", dash=(4, 3))
+            c.create_text(padx + 2, max(8, ty - 8), anchor="w", fill="#f1c40f",
+                          text=f"target {target}", font=("Segoe UI", 8, "bold"))
             # current value: dot + bold label above it
             lx, ly = line[-2], line[-1]
             c.create_oval(lx - 3, ly - 3, lx + 3, ly + 3, fill=ACCENT, outline="")
