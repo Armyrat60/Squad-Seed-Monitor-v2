@@ -123,9 +123,29 @@ class SeedMonitorApp(ctk.CTk):
         else:
             self._set_status("No server yet - use the Server tab to find one", WARN)
         self.countdown()
-        # Populate the favorites dashboard shortly after the UI is up, then keep
-        # it refreshing periodically.
+        # Auto-fit the window to the Monitor content once it's laid out, then keep
+        # the favorites dashboard refreshing.
+        self.after(180, self._fit_to_content)
         self.after(1500, self._favorites_autorefresh)
+
+    def _fit_to_content(self):
+        """Size the window height to exactly fit the Monitor tab's content (no
+        dead space), clamped to the screen. The graph still flexes on resize."""
+        try:
+            self.update_idletasks()
+            body = getattr(self, "_monitor_body", None)
+            if not body:
+                return
+            content_h = body.winfo_reqheight()
+            # Slightly generous: if it over-shoots, the flexing graph absorbs the
+            # extra (no dead space); under-shooting would clip (no scrollbar).
+            chrome = 84   # tab bar + tabview/window paddings
+            screen_h = self.winfo_screenheight()
+            h = max(560, min(content_h + chrome, screen_h - 90))
+            w = self.winfo_width() if self.winfo_width() > 100 else 600
+            self.geometry(f"{w}x{h}")
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------ UI --- #
     def _build_ui(self):
@@ -167,6 +187,7 @@ class SeedMonitorApp(ctk.CTk):
         # Plain frame (no scrollbar) — the content is sized to fit the window.
         p = ctk.CTkFrame(self.tab_monitor, fg_color="transparent")
         p.pack(fill="both", expand=True)
+        self._monitor_body = p   # measured to auto-fit the window on open
 
         def card(accent=False, last=False, grow=False):
             c = ctk.CTkFrame(p, fg_color=SURFACE, corner_radius=12, border_width=2 if accent else 1,
