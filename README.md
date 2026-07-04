@@ -34,12 +34,18 @@ Go to the [**Releases**](../../releases) page and pick one:
 - **Returns your game to normal automatically** — unmutes and restores your
   graphics settings when seeding is done (target reached or server goes live).
   Nothing to remember to undo.
-- **Safe shutdown** — if you choose "Shutdown PC", it asks you to confirm first,
-  gives an abortable countdown, and cancels automatically if you don't respond.
+- **Safe shutdown** — if you choose "Shutdown PC", it shuts down after an
+  abortable countdown (big **ABORT** button) so you can seed and walk away. Prefer
+  to be asked first? Turn on **Confirm before shutdown** in Settings and it pops a
+  dialog that cancels itself if you don't respond.
+- **Low-Resource mode** — drops Squad's resolution, FPS cap, and quality to the
+  minimum so seeding barely uses your PC, plus a **Minimize Squad** button that
+  parks the window so it stops rendering. One click reverts everything.
 - **Favorites dashboard** — save the servers you seed and see them all at a
   glance: each shows live player count and whether it's **Seeding**, **Live**, or
   **Empty**, auto-refreshing while the app is open. Switch to any of them in one
-  click. A ☆/★ next to the current server on every tab toggles it as a favorite.
+  click. A ☆/★ next to the current server (top of the Monitor tab) toggles it as
+  a favorite.
 - **Live graph, tray, notifications** — watch the population climb, minimize to
   the system tray, and get a desktop toast when the server is seeded.
 - **Update check** — tells you when a newer version is available.
