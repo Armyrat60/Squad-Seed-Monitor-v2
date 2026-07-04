@@ -5,6 +5,10 @@ at low graphics/FPS to help it populate. It watches a BattleMetrics server and,
 once the server is genuinely seeded, returns your game to normal (and optionally
 closes Squad or shuts down your PC) so you don't have to babysit it.
 
+> Based on the original **[Squad-Seed-Monitor](https://github.com/NightSkyACC/Squad-Seed-Monitor)**
+> by **[NightSkyACC](https://github.com/NightSkyACC)**. This is a rewrite that
+> builds on their idea — full credit to them for the original project.
+
 ## Download & install
 
 Go to the [**Releases**](../../releases) page and pick one:
@@ -107,3 +111,15 @@ automatically on first launch.
 - No BattleMetrics API token needed — only public endpoints are used.
 - Seeding by sitting AFK occupies a real player slot. Set your target below your
   server's cap so seeders free their slots before blocking live joiners at peak.
+
+## Credits
+
+- Original project: **[Squad-Seed-Monitor](https://github.com/NightSkyACC/Squad-Seed-Monitor)**
+  by **[NightSkyACC](https://github.com/NightSkyACC)** — the concept and first
+  implementation this rewrite is based on.
+- Rewrite/maintenance: [Armyrat60](https://github.com/Armyrat60).
+
+## License
+
+MIT — see [LICENSE](LICENSE). Original copyright © NightSkyACC; this fork
+preserves that notice.
