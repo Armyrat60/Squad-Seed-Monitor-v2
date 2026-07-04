@@ -70,8 +70,8 @@ class SeedMonitorApp(ctk.CTk):
         self.log = core.setup_logger()
 
         self.title(f"{core.APP_TITLE}  v{core.__version__}")
-        self.geometry("620x880")     # tall enough to show the whole Monitor tab
-        self.minsize(560, 560)       # ...but can shrink to a compact box (it scrolls)
+        self.geometry("600x744")     # snug fit for the Monitor tab, minimal dead space
+        self.minsize(540, 520)       # can shrink to a compact box (content scrolls)
         self.configure(fg_color=WINDOW_BG)
         try:
             ico = _resource_path(os.path.join("assets", "icon.ico"))
@@ -154,7 +154,7 @@ class SeedMonitorApp(ctk.CTk):
         self._update_fav_star()
 
         # Tabview with larger tab labels. Tab bg = window bg so SURFACE cards lift.
-        self.tabs = ctk.CTkTabview(self, height=700, fg_color=WINDOW_BG,
+        self.tabs = ctk.CTkTabview(self, height=560, fg_color=WINDOW_BG,
                                    segmented_button_selected_color=ACCENT,
                                    segmented_button_selected_hover_color=ACCENT_HOVER)
         self.tabs.pack(fill="both", expand=True, padx=12, pady=(2, 8))
@@ -181,89 +181,98 @@ class SeedMonitorApp(ctk.CTk):
         p = ctk.CTkScrollableFrame(self.tab_monitor, fg_color="transparent")
         p.pack(fill="both", expand=True)
 
-        # ============ Server card: count + graph + launch/connect ============
-        status = ctk.CTkFrame(p, fg_color=SURFACE, corner_radius=12,
-                              border_width=1, border_color=BORDER)
-        status.pack(fill="x", padx=12, pady=(12, 6))
-        row = ctk.CTkFrame(status, fg_color="transparent")
-        row.pack(fill="x", padx=16, pady=(12, 2))
-        left = ctk.CTkFrame(row, fg_color="transparent")
-        left.pack(side="left")
-        self.lbl_players = ctk.CTkLabel(left, text="--", text_color=TEXT,
-                                        font=ctk.CTkFont(size=46, weight="bold"))
+        def card(accent=False, last=False):
+            c = ctk.CTkFrame(p, fg_color=SURFACE, corner_radius=12, border_width=2 if accent else 1,
+                             border_color=ACCENT if accent else BORDER)
+            c.pack(fill="x", padx=12, pady=(10, 10 if last else 0))
+            return c
+
+        # ================= Server card: stats + target + graph + join =================
+        server = card()
+        top = ctk.CTkFrame(server, fg_color="transparent")
+        top.pack(fill="x", padx=16, pady=(12, 4))
+        colL = ctk.CTkFrame(top, fg_color="transparent")
+        colL.pack(side="left")
+        self.lbl_players = ctk.CTkLabel(colL, text="--", text_color=TEXT,
+                                        font=ctk.CTkFont(size=44, weight="bold"))
         self.lbl_players.pack()
-        ctk.CTkLabel(left, text="PLAYERS", text_color=MUTED,
+        ctk.CTkLabel(colL, text="PLAYERS", text_color=MUTED,
                      font=ctk.CTkFont(size=10, weight="bold")).pack()
-        infocol = ctk.CTkFrame(row, fg_color="transparent")
-        infocol.pack(side="left", fill="x", expand=True, padx=(18, 0))
-        self.lbl_status = ctk.CTkLabel(infocol, text="Status: idle", text_color=ACCENT,
+        # target block, top-right
+        colR = ctk.CTkFrame(top, fg_color="transparent")
+        colR.pack(side="right", anchor="n")
+        ctk.CTkLabel(colR, text="TARGET", text_color=MUTED,
+                     font=ctk.CTkFont(size=10, weight="bold")).pack(anchor="e")
+        trow = ctk.CTkFrame(colR, fg_color="transparent")
+        trow.pack(anchor="e")
+        ctk.CTkLabel(trow, text="\u2265", text_color=TEXT,
+                     font=ctk.CTkFont(size=16, weight="bold")).grid(row=0, column=0, padx=(0, 3))
+        self.spin_target = ctk.CTkEntry(trow, width=52, height=30, justify="center",
+                                        fg_color=SURFACE_2, border_color=BORDER,
+                                        font=ctk.CTkFont(size=15, weight="bold"))
+        self.spin_target.insert(0, str(self.cfg["target_players"]))
+        self.spin_target.grid(row=0, column=1)
+        self.spin_target.bind("<FocusOut>", lambda e: self.on_settings_change())
+        self.spin_target.bind("<Return>", lambda e: self.on_settings_change())
+        # status/layer/timer between count and target
+        info = ctk.CTkFrame(top, fg_color="transparent")
+        info.pack(side="left", fill="x", expand=True, padx=(16, 12))
+        self.lbl_status = ctk.CTkLabel(info, text="Status: idle", text_color=ACCENT,
                                        font=ctk.CTkFont(size=13, weight="bold"), anchor="w")
         self.lbl_status.pack(anchor="w")
-        self.lbl_layer = ctk.CTkLabel(infocol, text="Layer: --", text_color=MUTED,
+        self.lbl_layer = ctk.CTkLabel(info, text="Layer: --", text_color=MUTED,
                                       font=ctk.CTkFont(size=12), anchor="w",
-                                      wraplength=360, justify="left")
+                                      wraplength=300, justify="left")
         self.lbl_layer.pack(anchor="w")
-        self.lbl_timer = ctk.CTkLabel(infocol, text="Next check in -- s", text_color=MUTED,
+        self.lbl_timer = ctk.CTkLabel(info, text="Next check in -- s", text_color=MUTED,
                                       font=ctk.CTkFont(size=11), anchor="w")
         self.lbl_timer.pack(anchor="w")
-        self.graph = ctk.CTkCanvas(status, height=50, highlightthickness=0, bg=SURFACE_2)
-        self.graph.pack(fill="x", padx=14, pady=(6, 8))
+        self.graph = ctk.CTkCanvas(server, height=76, highlightthickness=0, bg=SURFACE_2)
+        self.graph.pack(fill="x", padx=16, pady=(6, 10))
         self.graph.bind("<Configure>", lambda e: self._draw_graph())
-        jr = ctk.CTkFrame(status, fg_color="transparent")
-        jr.pack(pady=(0, 6))
+        jr = ctk.CTkFrame(server, fg_color="transparent")
+        jr.pack(pady=(0, 4))
         ctk.CTkButton(jr, text="Launch Squad", width=150, fg_color=NEUTRAL_BTN,
                       hover_color=NEUTRAL_HOVER,
                       command=lambda: webbrowser.open(core.LAUNCH_URL)).grid(row=0, column=0, padx=5)
         ctk.CTkButton(jr, text="Connect", width=150, fg_color=ACCENT, hover_color=ACCENT_HOVER,
                       command=self.connect_server).grid(row=0, column=1, padx=5)
-        ctk.CTkLabel(status, text="Connect launches Squad and joins (with Squad closed). If it "
-                                  "opens to the menu, the address is copied \u2014 paste it into "
-                                  "the in-game Custom Browser.",
-                     text_color=MUTED, font=ctk.CTkFont(size=10), wraplength=540,
-                     justify="left").pack(anchor="w", padx=16, pady=(0, 12))
+        ctk.CTkLabel(server, text="Connect launches & joins with Squad closed. If it opens to the "
+                                  "menu, the address is copied \u2014 paste it into the in-game "
+                                  "Custom Browser.",
+                     text_color=MUTED, font=ctk.CTkFont(size=10), wraplength=470,
+                     justify="center").pack(pady=(0, 12), padx=16)
 
-        # ============ When seeded: threshold + action (near the top) ============
-        self.act_card = ctk.CTkFrame(p, fg_color=SURFACE, corner_radius=10,
-                                     border_width=2, border_color=ACCENT)
-        self.act_card.pack(fill="x", padx=12, pady=(0, 6))
-        trig = ctk.CTkFrame(self.act_card, fg_color="transparent")
-        trig.pack(pady=(10, 6))
-        ctk.CTkLabel(trig, text="\u2714 When seeded (", text_color=TEXT,
-                     font=ctk.CTkFont(size=12, weight="bold")).grid(row=0, column=0)
-        self.spin_target = ctk.CTkEntry(trig, width=46, height=26, justify="center",
-                                        fg_color=SURFACE_2, border_color=BORDER)
-        self.spin_target.insert(0, str(self.cfg["target_players"]))
-        self.spin_target.grid(row=0, column=1, padx=2)
-        self.spin_target.bind("<FocusOut>", lambda e: self.on_settings_change())
-        self.spin_target.bind("<Return>", lambda e: self.on_settings_change())
-        ctk.CTkLabel(trig, text="players), do:", text_color=TEXT,
-                     font=ctk.CTkFont(size=12, weight="bold")).grid(row=0, column=2)
+        # ================= When seeded: action (compact) =================
+        self.act_card = card(accent=True)
+        ctk.CTkLabel(self.act_card, text="When seeded, do:", text_color=TEXT,
+                     font=ctk.CTkFont(size=12, weight="bold")).pack(pady=(10, 4))
         self.action_seg = ctk.CTkSegmentedButton(
             self.act_card, values=["Do Nothing", "Kill Process", "Shutdown PC"],
             variable=self.action_var, command=self.set_action,
             selected_color=ACCENT, selected_hover_color=ACCENT_HOVER,
             font=ctk.CTkFont(size=12, weight="bold"), height=32)
-        self.action_seg.pack(padx=12, fill="x")
+        self.action_seg.pack(padx=14, fill="x")
         self.lbl_action_desc = ctk.CTkLabel(self.act_card, text="", text_color=ACCENT,
                                             font=ctk.CTkFont(size=11))
-        self.lbl_action_desc.pack(pady=(6, 10))
+        self.lbl_action_desc.pack(pady=(6, 12))
         self._update_action_desc(self.action_var.get())
 
-        # ============ Low-Resource Graphics (set & forget, bottom) ============
-        ctk.CTkFrame(p, height=1, fg_color=BORDER).pack(fill="x", padx=20, pady=(10, 0))
-        gh = ctk.CTkFrame(p, fg_color="transparent")
-        gh.pack(fill="x", padx=20, pady=(10, 0))
+        # ================= Low-Resource Graphics (boxed, centered) =================
+        gfx = card(last=True)
+        gh = ctk.CTkFrame(gfx, fg_color="transparent")
+        gh.pack(fill="x", padx=14, pady=(10, 0))
         ctk.CTkLabel(gh, text="Low-Resource Graphics", text_color=TEXT,
                      font=ctk.CTkFont(size=13, weight="bold")).pack(side="left")
         ctk.CTkButton(gh, text="\u24d8 How it works", width=104, height=26,
                       fg_color=NEUTRAL_BTN, hover_color=NEUTRAL_HOVER,
                       command=self._show_seed_mode_help).pack(side="right")
-        ctk.CTkLabel(p, text="\u26a0 Squad will LAUNCH with these settings. Set them with Squad "
-                             "closed; defaults are tuned for seeding.",
-                     text_color=MUTED, font=ctk.CTkFont(size=10), wraplength=540,
-                     justify="left").pack(anchor="w", padx=20, pady=(2, 4))
-        tr = ctk.CTkFrame(p, fg_color="transparent")
-        tr.pack(anchor="w", padx=20, pady=(2, 0))
+        ctk.CTkLabel(gfx, text="\u26a0 Squad LAUNCHES with these \u2014 set them with Squad "
+                               "closed. Defaults are tuned for seeding.",
+                     text_color=MUTED, font=ctk.CTkFont(size=10), wraplength=470,
+                     justify="center").pack(pady=(4, 8), padx=14)
+        tr = ctk.CTkFrame(gfx, fg_color="transparent")
+        tr.pack(pady=(0, 6))
         ctk.CTkLabel(tr, text="Resolution", text_color=MUTED,
                      font=ctk.CTkFont(size=10)).grid(row=0, column=0, padx=4, sticky="w")
         ctk.CTkLabel(tr, text="FPS limit", text_color=MUTED,
@@ -284,8 +293,8 @@ class SeedMonitorApp(ctk.CTk):
                                          hover_color="#cf6f1e", state="disabled",
                                          command=self.manual_restore)
         self.btn_restore.grid(row=1, column=3, padx=4)
-        lr = ctk.CTkFrame(p, fg_color="transparent")
-        lr.pack(anchor="w", padx=20, pady=(8, 12))
+        lr = ctk.CTkFrame(gfx, fg_color="transparent")
+        lr.pack(pady=(4, 12))
         self.btn_mute = ctk.CTkButton(lr, text="Mute Audio", width=150, fg_color=NEUTRAL_BTN,
                                       hover_color=NEUTRAL_HOVER, command=self.mute_squad)
         self.btn_mute.grid(row=0, column=0, padx=5, pady=2)
@@ -1214,48 +1223,47 @@ class SeedMonitorApp(ctk.CTk):
 
     # ---------------------------------------------------------- action --- #
     def _draw_graph(self):
-        """Draw the recent player-count line + target line on the canvas."""
+        """Draw the recent player-count area + target line on the canvas."""
         c = self.graph
         try:
             c.delete("all")
             w = c.winfo_width() or 400
-            h = c.winfo_height() or 90
+            h = c.winfo_height() or 76
             vals = self.history.values()
             target = self.cfg.get("target_players", 95)
-            pad = 6
-            # scale: 0..max(target, observed) with a little headroom
+            padx, padtop, padbot = 8, 14, 10
+            base = h - padbot
             top = max([target] + vals) if vals else target
-            top = max(1, top) * 1.1
+            top = max(1, top) * 1.12
 
             def y_for(v):
-                return h - pad - (v / top) * (h - 2 * pad)
+                return base - (v / top) * (base - padtop)
 
-            # target line
+            # target line + label (top-left, out of the way of the value)
             ty = y_for(target)
-            c.create_line(pad, ty, w - pad, ty, fill="#f1c40f", dash=(3, 3))
-            # target label on the LEFT so it never collides with the current
-            # value label (which sits at the line's right end).
-            c.create_text(pad + 2, ty - 7, anchor="w", fill="#f1c40f",
-                          text=f"target {target}", font=("Segoe UI", 7))
+            c.create_line(padx, ty, w - padx, ty, fill="#c9a20a", dash=(4, 3))
+            c.create_text(padx + 2, max(8, ty - 8), anchor="w", fill="#f1c40f",
+                          text=f"target {target}", font=("Segoe UI", 8))
 
             if len(vals) < 2:
-                c.create_text(w // 2, h // 2, fill="#8a8f98",
-                              text="collecting data...", font=("Segoe UI", 9))
+                c.create_text(w // 2, h // 2 + 2, fill=MUTED,
+                              text="collecting data…", font=("Segoe UI", 9))
                 return
 
-            # player line
             n = len(vals)
-            step = (w - 2 * pad) / (n - 1)
-            pts = []
+            step = (w - 2 * padx) / (n - 1)
+            line = []
             for i, v in enumerate(vals):
-                pts.append(pad + i * step)
-                pts.append(y_for(v))
-            c.create_line(*pts, fill="#2fa572", width=2, smooth=True)
-            # last value dot + label
-            lx, ly = pts[-2], pts[-1]
-            c.create_oval(lx - 3, ly - 3, lx + 3, ly + 3, fill="#2fa572", outline="")
-            c.create_text(lx - 6, ly - 8, anchor="e", fill="#e6e6e6",
-                          text=str(vals[-1]), font=("Segoe UI", 8, "bold"))
+                line += [padx + i * step, y_for(v)]
+            # filled area under the line for readability
+            area = [padx, base] + line + [w - padx, base]
+            c.create_polygon(*area, fill="#1f3a30", outline="")
+            c.create_line(*line, fill=ACCENT, width=2, smooth=True)
+            # current value: dot + bold label above it
+            lx, ly = line[-2], line[-1]
+            c.create_oval(lx - 3, ly - 3, lx + 3, ly + 3, fill=ACCENT, outline="")
+            c.create_text(lx - 4, ly - 9, anchor="e", fill=TEXT,
+                          text=str(vals[-1]), font=("Segoe UI", 10, "bold"))
         except Exception:
             pass  # never let a draw error disrupt anything
 
